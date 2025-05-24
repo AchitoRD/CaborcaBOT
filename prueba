@@ -1,0 +1,36 @@
+Arquitectura del Bot
+
+Caborca Bot está construido con una estructura modular y organizada, facilitando su mantenimiento y escalabilidad. Se compone de un index.js central y carpetas dedicadas para:
+
+    commands/: Contiene la lógica de los comandos.
+    events/: Maneja los eventos de Discord.
+    models/: Define los modelos de la base de datos (con Sequelize).
+    handlers/: Gestiona la carga y ejecución de comandos y eventos.
+    utils/: Almacena funciones y utilidades generales.
+    database/: Contiene la configuración y conexión a la base de datos.
+
+Errores Críticos Resueltos
+
+Hemos solucionado con éxito los siguientes problemas que afectaban la operatividad del bot:
+
+    ReferenceError: client is not defined: Error de inicialización que impedía el arranque del bot.
+    ValidationError: notNull Violation: Problemas al intentar guardar configuraciones nulas en la base de datos de Sequelize, garantizando ahora la integridad de los datos.
+    InteractionAlreadyReplied: Corrección para evitar que el bot intente responder dos veces a la misma interacción.
+    InteractionNotReplied: Solventado el intento del bot de editar una interacción sin haberla respondido o diferido previamente.
+    TypeError: Cannot read properties of undefined: Fallos al acceder a propiedades de objetos no definidos, mejorando la robustez del código.
+    Problemas con GUILD MEMBERS INTENT: El bot ahora puede acceder correctamente a la información de los miembros del servidor gracias a la activación de esta intención en Discord Developers.
+
+Implementaciones y Mejoras
+
+Más allá de la corrección de errores, se han añadido y refinado funcionalidades cruciales:
+
+    Manejo avanzado de interacciones: Implementación y uso correcto de interaction.reply(), interaction.deferReply(), interaction.update(), interaction.editReply(), y interaction.showModal(), para una comunicación fluida y precisa.
+    Manejo de errores robusto: Integración de bloques try...catch y validaciones específicas para configuraciones y miembros, haciendo el bot más resistente a fallos inesperados.
+    Funcionalidades de verificación mejoradas:
+        Mención automática de roles de staff en nuevas solicitudes de verificación.
+        Cambio automático del apodo del usuario al nombre de Roblox al aprobar la verificación.
+    Herramienta de administración: Incorporación de un comando administrativo para vaciar la base de datos de verificaciones, útil para tareas de mantenimiento.
+
+Estado Actual
+
+El Caborca Bot ahora arranca sin errores de inicio, y todas las funcionalidades clave de verificación y configuración están plenamente operativas.
