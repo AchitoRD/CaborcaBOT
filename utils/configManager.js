@@ -6,15 +6,19 @@ const DEFAULT_CONFIG_VALUES = {
     defaultGiveCommandRoles: [],
     collectConfig: { amount: 15000, cooldown: 3600000, roles: [] }, // 1 hora
     workConfig: { minAmount: 500000, maxAmount: 200000000, cooldown: 14400000, roles: [] }, // 4 horas
-    unverifiedRole: '', // ID del rol "No Verificado". ¡Cambiado de null a cadena vacía!
-    citizenRole: '',    // ID del rol "Ciudadano". ¡Cambiado de null a cadena vacía!
-    staffRoles: [],     // Array de IDs de roles de staff (ya estaba bien)
-    logChannelId: '',   // ID del canal de logs. ¡Cambiado de null a cadena vacía!
+    unverifiedRole: '', // ID del rol "No Verificado".
+    citizenRole: '',    // ID del rol "Ciudadano".
+    staffRoles: [],     // Array de IDs de roles de staff
+    logChannelId: '',   // ID del canal de logs.
     welcomeMessagesEnabled: false,
-    welcomeChannelId: '', // ID del canal de bienvenida. ¡Cambiado de null a cadena vacía!
+    welcomeChannelId: '', // ID del canal de bienvenida.
     welcomeMessageText: '¡Bienvenido {member} a nuestro servidor!',
-    ticketCategoryChannelId: '', // ID de la categoría de tickets. ¡Cambiado de null a cadena vacía!
-    useItemAllowedRoles: [],    // Roles permitidos para usar ítems (ya estaba bien)
+    ticketCategoryChannelId: '', // ID de la categoría de tickets.
+    useItemAllowedRoles: [],    // Roles permitidos para usar ítems
+
+    // --- ¡NUEVO CAMPO DE CONFIGURACIÓN! ---
+    policeRoles: [], // Array de IDs de roles de policía/autoridades.
+    // --- FIN NUEVO CAMPO ---
 };
 
 // Caché para las configuraciones cargadas

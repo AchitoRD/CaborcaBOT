@@ -1,18 +1,22 @@
-// commands/admin/testadmin.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { createCaborcaEmbed } = require('../../utils/embedBuilder'); 
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { createCaborcaEmbed } = require('../../utils/embedBuilder');
+// ELIMINADA: const { defer, reply } = require('../../utils/responseUtils');
 
-module.exports = { // <--- ¡Asegúrate de que esta línea esté presente y correcta!
+module.exports = {
     data: new SlashCommandBuilder()
         .setName('testadmin')
         .setDescription('Comando de prueba solo para administradores. 👑')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator), 
-    async execute(interaction) { // <--- ¡Asegúrate de que esta función esté presente y correcta!
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    async execute(interaction) {
+        // NO LLAMES A defer() AQUÍ. index.js ya lo hizo automáticamente como efímero.
+
         const embed = createCaborcaEmbed({
             title: '👑 Acceso de Administrador Confirmado',
-            description: `¡Felicidades, ${interaction.user.username}! Parece que tienes permisos de administrador. Este comando funciona correctamente. ✅`,
-            color: '#2ECC71' 
+            description: `¡Felicidades, **${interaction.user.username}**! Parece que tienes permisos de administrador. Este comando funciona correctamente. ✅`,
+            color: '#2ECC71'
         });
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+
+        // Usa interaction.editReply para enviar el contenido. Será efímero porque ya lo diferimos efímeramente.
+        await interaction.editReply({ embeds: [embed] });
     },
-}; // <--- ¡Asegúrate de que cierre aquí con la llave del module.exports!
+};

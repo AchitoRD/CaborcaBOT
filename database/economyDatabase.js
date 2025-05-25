@@ -1,12 +1,24 @@
-// database/economyDatabase.js
 const { Sequelize } = require('sequelize');
 const path = require('node:path');
 
-// Inicializa Sequelize para usar SQLite, con un archivo de DB diferente
 const economySequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: path.join(__dirname, 'economy.sqlite'), // Archivo de la base de datos de economía
-    logging: false, // Puedes establecer a true para ver los logs de SQL
+    storage: path.join(__dirname, 'economy.sqlite'), // Asegúrate de que esta ruta sea correcta
+    logging: false, // Desactiva el logging de SQL para la consola, útil en producción
 });
 
-module.exports = economySequelize;
+// Importar y pasar la instancia de Sequelize a cada modelo
+const UserEconomy = require('../models/UserEconomy')(economySequelize);
+const Arresto = require('../models/Arresto')(economySequelize);
+const Multa = require('../models/Multa')(economySequelize);
+// const ServerVote = require('../models/ServerVote')(economySequelize); // ¡COMENTADO O ELIMINADO!
+
+// Si tienes asociaciones entre modelos, defínelas aquí
+
+module.exports = {
+    economySequelize,
+    UserEconomy,
+    Arresto,
+    Multa,
+  
+};

@@ -112,7 +112,7 @@ module.exports = async (interaction, client, getConfig) => {
             });
 
             try {
-                await member.send(`✅ ¡Felicidades! Tu cuenta de Roblox (\`${robloxName}\`) ha sido verificada en **${interaction.guild.name}**.`);
+                await member.send(`✅ ¡Felicidades! Tu cuenta de Roblox (\`${robloxName}\`) ha sido verificada en **${interaction.guild.name}**. Recuerda leer la normativa en https://discord.com/channels/1331832594463199333/1340139924120272946 y los conceptos en: https://discord.com/channels/1331832594463199333/1340139976125448353, también las zonas seguras: https://discord.com/channels/1331832594463199333/1340484908270751806. ¡Disfruta tu experiencia de rol! 🏙️🎭`);
             } catch (dmError) {
                 console.warn(`No se pudo enviar DM a ${member.user.tag} sobre la verificación aprobada.`);
             }
@@ -137,7 +137,7 @@ module.exports = async (interaction, client, getConfig) => {
             });
 
             try {
-                await member.send(`❌ Tu solicitud de verificación de Roblox (\`${robloxName}\`) en **${interaction.guild.name}** ha sido rechazada. Por favor, revisa que la información o la imagen sean correctas y envía una nueva solicitud si lo deseas.`);
+                await member.send(`❌ Tu solicitud de verificación de Roblox (\`${robloxName}\`) en **${interaction.guild.name}** ha sido rechazada. Esto puede deberse a que la imagen de perfil o el usuario de Roblox no coinciden o no cumplen con los requisitos. Asegúrate de que el nombre de usuario esté bien escrito y que la foto muestre claramente tu perfil con el nombre, avatar y, si es posible, la URL visible. No recortes ni edites la imagen de forma que se pierda información importante. Cuando estés listo, vuelve a enviar tu solicitud. Si tienes dudas, contacta a un moderador o revisa el canal de ayuda 🛠️`);
             } catch (dmError) {
                 console.warn(`No se pudo enviar DM a ${member.user.tag} sobre el rechazo de verificación.`);
             }
