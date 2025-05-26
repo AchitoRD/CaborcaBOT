@@ -2,6 +2,8 @@
 
 # Caborca Bot: Arquitectura y Estado Actual 🚀
 
+**Versión del Bot:** **1.0.1 (Estable)**
+
 **Enlace al Código:** [https://github.com/AchitoRD/CaborcaBOT](https://github.com/AchitoRD/CaborcaBOT)
 
 Caborca Bot está diseñado con una **arquitectura modular y robusta**, pensada para un mantenimiento sencillo, escalabilidad y una claridad impecable en el desarrollo. Su estructura se basa en un archivo central y carpetas especializadas que segmentan cada función del bot.
@@ -10,10 +12,14 @@ Caborca Bot está diseñado con una **arquitectura modular y robusta**, pensada 
 
 ## Estructura de Archivos y Carpetas 📁
 
-* **`index.js`**: Es el cerebro de Caborca Bot. Este archivo principal inicia el cliente de Discord, carga todos los **manejadores (comandos, eventos, interacciones)** y sincroniza las bases de datos al arrancar. Es el punto de entrada central para todas las interacciones de Discord (comandos slash, botones, modales, select menus), redirigiéndolas a sus funciones específicas. Además, incluye la crucial **verificación de roles para comandos restringidos** (como los de policía) y gestiona los **estados de presencia rotativos** del bot, ¡con emojis dinámicos cada 10 segundos!
+* **`index.js`**: Es el cerebro de Caborca Bot. Este archivo principal inicia el cliente de Discord, carga todos los **manejadores (comandos, eventos, interacciones)** y sincroniza las bases de datos al arrancar. Es el punto de entrada central para todas las interacciones de Discord (comandos slash, botones, modales, select menus), redirigiéndolas a sus funciones específicas.
+
+    **¡Funcionalidad Clave y Única!** Una de las fortalezas de `index.js` es su **sistema automático de deferencia de interacciones (`deferReply`)**. Esto significa que *todos* los comandos de barra se responden automáticamente con un estado "pensando" (ya sea visible o efímero) justo al ser llamados. Esto evita el temido mensaje "La aplicación no responde" en Discord y simplifica la lógica en cada comando individual, delegando la responsabilidad de la primera respuesta a un solo lugar. **Los comandos `/abrir` y `/cerrar` son excepciones gestionadas directamente aquí para asegurar su visibilidad pública.**
+
+    Además, incluye la crucial **verificación de roles para comandos restringidos** (como los de policía) y gestiona los **estados de presencia rotativos** del bot, ¡con emojis dinámicos cada **5 segundos**!
 
 * **`commands/`**: Aquí vive la lógica de todos los comandos del bot, organizados de forma lógica por categorías para una gestión más fácil:
-    * **`commands/admin/`**: Contiene comandos esenciales de administración, como el potente `/configurar` para gestionar los ajustes del bot directamente desde Discord, y los comandos simplificados `/abrir` y `/cerrar` que ahora funcionan sin base de datos para una mayor fiabilidad.
+    * **`commands/admin/`**: Contiene comandos esenciales de administración, como el potente `/configurar` para gestionar los ajustes del bot directamente desde Discord. Incluye los comandos **`/abrir` y `/cerrar`** para la gestión pública de la apertura y cierre del servidor a través de un sistema de votación. Aquí también se encuentra el comando **`/pruebascomandos`**, una herramienta de diagnóstico exhaustiva que ejecuta y reporta el estado de todos los comandos de forma interna.
     * **`commands/economy/`**: Agrupa los comandos de nuestro sistema de economía (balance, tienda, etc.), incluyendo la lógica para el comando `/pagarmulta` que ahora funciona mediante un menú interactivo.
     * **`commands/roleplay/`**: Maneja todos los comandos relacionados con el roleplay, incluyendo el registro y la verificación de cédulas.
     * **`commands/tickets/`**: Contiene la lógica para la creación y gestión eficiente de tickets de soporte.
@@ -30,15 +36,16 @@ Caborca Bot está diseñado con una **arquitectura modular y robusta**, pensada 
     * `UserEconomy.js`: Modelo para el balance de economía de los usuarios.
     * `Config.js`: Modelo para almacenar configuraciones dinámicas del bot.
     * `Verification.js`: Modelo para el seguimiento de solicitudes de verificación.
-    * `ServerVote.js`: Modelo para la gestión de votaciones en el servidor (aunque los comandos `/abrir` y `/cerrar` ahora operan sin su uso directo).
+    * `ServerVote.js`: Modelo para la gestión de votaciones en el servidor (aunque los comandos `/abrir` y `/cerrar` ahora operan con una lógica interna basada en memoria en `client.activePolls`).
     * `Arresto.js`: ¡Modelo actualizado para registrar detalles de arrestos, incluyendo `fotoUrl`, `tiempoMinutos` y `articulos`!
     * `Multa.js`: ¡Modelo actualizado para registrar multas y su estado de pago, incluyendo `fotoUrl`, `placa` y `articulos`!
 
 * **`handlers/`**: Controla la carga y ejecución eficiente de los comandos y eventos, además de centralizar las interacciones:
-    * **`commandHandler.js`**: Se encarga de cargar todos los comandos y registrarlos. ¡Importante! **Ya no incluye la deferencia automática de interacciones**, delegando esta responsabilidad a cada comando individual para evitar conflictos y asegurar la estabilidad.
+    * **`commandHandler.js`**: Se encarga de cargar todos los comandos y registrarlos. **Ya no incluye la deferencia automática de interacciones**, delegando esta responsabilidad al `index.js` para asegurar la estabilidad y evitar conflictos.
     * **`eventHandler.js`**: Gestiona el registro de los distintos eventos del bot.
     * `buttonHandler.js`: Maneja interacciones específicas de botones (ej. para verificación).
     * **`interactionHandler.js`**: Un manejador centralizado crucial para todas las interacciones de componentes (botones, select menus, modales). Redirige cada interacción a la lógica correspondiente, incluyendo las nuevas configuraciones del panel y las confirmaciones.
+    * **`voteHandler.js`**: ¡NUEVO! Maneja la lógica específica para las votaciones interactivas del comando `/abrir`, gestionando votos, actualizaciones de embed y temporizadores.
 
 * **`utils/`**: Contiene funciones y utilidades generales reutilizables en todo el bot:
     * **`configManager.js`**: Gestiona la carga, guardado y limpieza de las configuraciones del bot desde la base de datos, ¡incluyendo la nueva configuración de `policeRoles`! Define valores por defecto y mantiene una caché para un acceso rápido.
@@ -48,7 +55,7 @@ Caborca Bot está diseñado con una **arquitectura modular y robusta**, pensada 
 
 * **`database/`**: Contiene la configuración y conexión a las bases de datos. Todos los modelos se definen al importar esta carpeta, pasándoles la instancia de Sequelize adecuada.
     * `database.js` (`cedulaSequelize`): Conexión para la base de datos de cédulas.
-    * `economyDatabase.js` (`economySequelize`): Conexión para la base de datos de economía, que ahora también almacena los datos de arrestos y multas. (La gestión de votaciones de `/abrir` y `/cerrar` ya no depende de esta DB).
+    * `economyDatabase.js` (`economySequelize`): Conexión para la base de datos de economía, que ahora también almacena los datos de arrestos y multas. (La gestión de votaciones de `/abrir` y `/cerrar` ahora utiliza `client.activePolls` en memoria).
     * `configDatabase.js` (`configSequelize`): Conexión para la base de datos de configuración del bot.
 
 * **`config.js`**: Almacena variables de entorno sensibles y configuraciones estáticas del bot (token, ID del cliente, ID del servidor, URL del banner, color de los embeds). Las configuraciones dinámicas, como los roles de policía, ahora se gestionan a través de `configManager.js` y la base de datos para mayor flexibilidad.
@@ -68,19 +75,22 @@ Caborca Bot está diseñado con una **arquitectura modular y robusta**, pensada 
 * **Sistema de Economía Integral**: Balance, tienda, compra y uso de ítems, pagos automáticos basados en roles.
 * **Roleplay (RP) Avanzado**: Registro y verificación de cédulas, ¡ahora con un **sistema de fuerzas del orden completamente funcional** que incluye el registro detallado de arrestos y multas, con opciones de evidencia fotográfica y tiempos asociados!
 * **Sistema de Tickets Robusto**: Creación, administración y cierre de tickets para soporte o moderación, facilitando la interacción con los usuarios.
-* **Administración Centralizada**: Comandos para configurar el bot (`/configurar` ahora con opción de configurar roles de policía directamente desde Discord), limpiar bases de datos y manejar permisos.
-* **Manejo de Interacciones Optimizado**: Implementación correcta y eficiente de `deferReply` (asegurando la visibilidad pública o privada según la funcionalidad), `replies`, modales y edición de mensajes para una **Experiencia de Usuario (UX) fluida y sin errores de interacción**, gracias a los helpers `responseUtils`.
+* **Administración Centralizada**: Comandos para configurar el bot (`/configurar` ahora con opción de configurar roles de policía directamente desde Discord), limpiar bases de datos y manejar permisos. Incluye el nuevo comando **`/pruebascomandos`** para diagnóstico completo del bot.
+* **Gestión de Apertura/Cierre de Servidor**: Comandos **`/abrir`** y **`/cerrar`** con un sistema de votación interactivo y público, que permite a los administradores iniciar votaciones para abrir el servidor y controlar su estado.
+* **Manejo de Interacciones Optimizado**: Implementación correcta y eficiente de `deferReply` (gestionado centralmente en `index.js`), `replies`, modales y edición de mensajes para una **Experiencia de Usuario (UX) fluida y sin errores de interacción**, gracias a los helpers `responseUtils`.
 * **Verificación Automática de Miembros**: Cambio automático de apodos y asignación de roles de staff en solicitudes de verificación, agilizando el proceso.
-* **Anuncios de Servidor Simples**: Los comandos `/abrir` y `/cerrar` ahora proporcionan anuncios claros de estado del servidor y limpieza de canal sin la complejidad de una base de datos.
-* **Presencia Dinámica**: Estados del bot rotativos y atractivos con emojis, actualizándose cada 10 segundos.
+* **Presencia Dinámica**: Estados del bot rotativos y atractivos con emojis, actualizándose cada **5 segundos**.
 
 ---
 
 ## Estado Actual ✅
 
-* El bot arranca correctamente sin errores críticos, y **todas las bases de datos se sincronizan al inicio**, incluyendo las tablas de cédulas, economía, configuración, arrestos y multas. (La tabla de votaciones ya no es crítica para `/abrir` y `/cerrar`).
+* El bot arranca correctamente sin errores críticos, y **todas las bases de datos se sincronizan al inicio**, incluyendo las tablas de cédulas, economía, configuración, arrestos y multas. (La tabla de votaciones de ServerVote.js ya no es crítica para `/abrir` y `/cerrar`, que ahora usan un sistema en memoria).
 * Todas las funcionalidades claves, como economía, roleplay, tickets y verificación, están **implementadas y operativas**.
 * Los comandos de policía (`/arresto`, `/multa`, `/pagarmulta` y `/consultarantecedentes`) han sido **implementados, probados y refinados** para su uso público, con mensajes en embeds claros y bien formateados, y manejo adecuado de evidencia fotográfica y detalles específicos.
 * La funcionalidad de `/configurar` ha sido **extendida para permitir la gestión de los roles de policía** directamente desde el propio panel del bot, ofreciendo un mayor control administrativo.
-* La arquitectura modular y la correcta implementación de la deferencia de interacciones aseguran que el bot sea robusto, fácil de mantener y escalar, eliminando problemas de respuestas duplicadas o invisibles.
+* Los nuevos comandos **`/abrir` y `/cerrar` están completamente operativos**, permitiendo votaciones públicas para la apertura del servidor y su cierre, con la gestión de votos únicos y avisos temporizados.
+* La arquitectura modular y la **correcta implementación centralizada de la deferencia de interacciones (`deferReply`) en `index.js`** aseguran que el bot sea robusto, fácil de mantener y escalar, eliminando problemas de respuestas duplicadas o invisibles y proporcionando una UX fluida.
 * El bot ofrece una experiencia de usuario fluida y visualmente atractiva con sus embeds y estados dinámicos.
+
+---

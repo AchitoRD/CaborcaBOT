@@ -1,4 +1,3 @@
-// commands/admin/configurar.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, MessageFlags, ChannelType, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getConfig, saveConfig, clearAllConfigs } = require('../../utils/configManager');
 
@@ -96,8 +95,6 @@ module.exports = {
     },
 
     async handleSelectMenu(interaction) {
-        // MANTÉN esta línea aquí porque varios casos usan editReply después.
-        // Si un caso aquí fuera a showModal, lo llamarías directamente sin deferUpdate previo en ese caso.
         await interaction.deferUpdate({ ephemeral: true }); 
 
         const [selectedValue] = interaction.values;
@@ -139,7 +136,7 @@ module.exports = {
                             .setEmoji('🔙')
                     );
                 
-                await interaction.editReply({ // Aquí editas la respuesta diferida
+                await interaction.editReply({ 
                     embeds: [economyPanelEmbed],
                     components: [economyPanelRow]
                 });
@@ -335,9 +332,6 @@ module.exports = {
     },
 
     async handleButton(interaction) {
-        // Se ELIMINÓ el await interaction.deferUpdate() global aquí.
-        // deferUpdate/editReply/showModal se manejan en cada case según sea necesario.
-
         const { customId } = interaction;
 
         switch (customId) {
@@ -400,7 +394,7 @@ module.exports = {
                 break;
             }
             case 'config_economy_collect_btn': {
-                await interaction.deferUpdate(); // MANTENER: aquí se usa editReply después
+                await interaction.deferUpdate(); 
                 const collectConfigs = await getConfig('collectConfig') || [];
                 
                 let description = 'Aquí puedes gestionar las configuraciones de `/collect` para diferentes roles.\n\n';
@@ -450,8 +444,7 @@ module.exports = {
                 break;
             }
             case 'config_economy_back_to_main_btn': {
-                await interaction.deferUpdate(); // MANTENER: aquí se usa editReply después
-                // Volver al menú principal de configuración (el embed inicial de /configurar)
+                await interaction.deferUpdate(); 
                 const configEmbed = new EmbedBuilder()
                     .setColor(0x3498DB)
                     .setTitle('⚙️ Panel de Configuración de Caborca Bot')
@@ -530,7 +523,6 @@ module.exports = {
                 });
                 break;
             }
-            // --- BOTONES PARA AÑADIR/EDITAR/ELIMINAR CONFIGURACIONES DE COLLECT POR ROL ---
             case 'config_collect_add_btn': {
                 const modal = new ModalBuilder()
                     .setCustomId('config_collect_add_modal')
@@ -615,7 +607,6 @@ module.exports = {
                 await interaction.showModal(modal);
                 break;
             }
-            // --- FIN NUEVOS BOTONES DE COLLECT ---
             default:
                 console.log(`Custom ID de botón no manejado por configurar.js: ${customId}`);
                 if (interaction.deferred || interaction.replied) {
@@ -626,8 +617,7 @@ module.exports = {
     },
 
     async handleModalSubmit(interaction) {
-        // MANTENER ESTA LÍNEA AQUÍ. Diferirá la interacción del modal una vez.
-        await interaction.deferUpdate(); 
+        await interaction.deferUpdate();
 
         const { customId } = interaction;
 
@@ -715,13 +705,10 @@ module.exports = {
                     return await interaction.followUp({ content: `❌ Errores al añadir configuración de /collect:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
-                // *** INICIO DE LA CORRECCIÓN CLAVE ***
                 let currentCollectConfigs = await getConfig('collectConfig');
-                // Asegúrate de que SIEMPRE sea un array, incluso si getConfig devuelve un objeto vacío u otra cosa.
                 if (!Array.isArray(currentCollectConfigs)) {
                     currentCollectConfigs = [];
                 }
-                // *** FIN DE LA CORRECCIÓN CLAVE ***
 
                 if (currentCollectConfigs.some(config => config.roleId === roleId)) {
                     return await interaction.followUp({ content: `❌ Ya existe una configuración de /collect para el rol <@&${roleId}>. Usa el botón "Editar" para modificarla.`, flags: MessageFlags.Ephemeral });
@@ -743,12 +730,10 @@ module.exports = {
                 const newAmountRaw = interaction.fields.getTextInputValue('collect_amount_edit');
                 const newCooldownHoursRaw = interaction.fields.getTextInputValue('collect_cooldown_hours_edit');
 
-                // *** INICIO DE LA CORRECCIÓN CLAVE ***
                 let currentCollectConfigs = await getConfig('collectConfig');
-                if (!Array.isArray(currentCollectConfigs)) { // Asegura que es un array
+                if (!Array.isArray(currentCollectConfigs)) {
                     currentCollectConfigs = [];
                 }
-                // *** FIN DE LA CORRECCIÓN CLAVE ***
                 const configIndex = currentCollectConfigs.findIndex(config => config.roleId === roleId);
 
                 if (configIndex === -1) {
@@ -790,12 +775,10 @@ module.exports = {
             case 'config_collect_remove_modal': {
                 const roleId = interaction.fields.getTextInputValue('collect_role_id_remove').trim();
 
-                // *** INICIO DE LA CORRECCIÓN CLAVE ***
                 let currentCollectConfigs = await getConfig('collectConfig');
-                if (!Array.isArray(currentCollectConfigs)) { // Asegura que es un array
+                if (!Array.isArray(currentCollectConfigs)) {
                     currentCollectConfigs = [];
                 }
-                // *** FIN DE LA CORRECCIÓN CLAVE ***
                 const initialLength = currentCollectConfigs.length;
                 currentCollectConfigs = currentCollectConfigs.filter(config => config.roleId !== roleId);
 

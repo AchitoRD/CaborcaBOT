@@ -1,6 +1,6 @@
-// deploy-commands.js
+// deploy-commands-dev.js
 const { REST, Routes } = require('discord.js');
-const { clientId, token } = require('./config');
+const { clientId, guildId, token } = require('./config');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -15,7 +15,7 @@ function readCommandFiles(dir) {
         if (file.isDirectory()) {
             readCommandFiles(fullPath);
         } else if (file.isFile() && file.name.endsWith('.js')) {
-            if (!fullPath.includes('deploy-commands.js')) {
+            if (!fullPath.includes('deploy-commands-dev.js')) {
                 try {
                     const command = require(fullPath);
                     if ('data' in command && 'execute' in command) {
@@ -37,16 +37,16 @@ const rest = new REST().setToken(token);
 
 (async () => {
     try {
-        console.log(`🌍 Desplegando ${commands.length} comandos globales (/)... Esto puede tardar hasta 1 hora en propagarse.`);
+        console.log(`🛠️ Desplegando ${commands.length} comandos solo en GUILD (${guildId})`);
 
         const data = await rest.put(
-            Routes.applicationCommands(clientId), // GLOBAL
+            Routes.applicationGuildCommands(clientId, guildId), // SOLO EN TEST SERVER
             { body: commands },
         );
 
-        console.log(`✅ ¡Comandos globales desplegados! Total: ${data.length}`);
-        console.log(`ℹ️ Tu bot ahora será reconocido como "Compatible con comandos {/}" después de que se propaguen.`);
+        console.log(`✅ ¡Comandos GUILD desplegados con éxito! Total: ${data.length}`);
+        console.log(`⚡ Se reflejarán en segundos en tu servidor de pruebas.`);
     } catch (error) {
-        console.error('❌ ¡Error al desplegar comandos globales:', error);
+        console.error('❌ ¡Error al desplegar comandos GUILD:', error);
     }
 })();

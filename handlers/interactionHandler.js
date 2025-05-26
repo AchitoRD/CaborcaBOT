@@ -1,107 +1,70 @@
-// handlers/interactionHandler.js
-const {
-    EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    MessageFlags,
-    StringSelectMenuBuilder,
-    StringSelectMenuOptionBuilder
-} = require('discord.js');
-
-const { createCaborcaEmbed } = require('../utils/embedBuilder');
-const { shop, serverBannerUrl, embedColor } = require('../config');
+const { EmbedBuilder, MessageFlags } = require('discord.js'); 
+const adminConfigCommand = require('../commands/admin/configurar.js'); // Importa el comando configurar para sus manejadores
+const voteHandler = require('./voteHandler.js'); // Importa el nuevo manejador de votos
 
 module.exports = async (interaction, client) => {
-    if (interaction.isChatInputCommand()) return;
+    // Manejo de interacciones de botones
+    if (interaction.isButton()) {
+        const { customId } = interaction;
 
-    const customId = interaction.customId;
-
-    if (interaction.message && interaction.message.interaction && interaction.message.interaction.user.id !== interaction.user.id) {
-        if (!customId.startsWith('vote_') && !customId.startsWith('unvote_')) {
-            return await interaction.reply({ content: '❌ Solo la persona que inició este panel puede interactuar con él.', flags: MessageFlags.Ephemeral });
+        // Redirige a los manejadores específicos según el customId del botón.
+        if (customId.startsWith('config_')) {
+            // Si el customId comienza con 'config_', lo maneja el comando de configuración.
+            return await adminConfigCommand.handleButton(interaction);
+        } else if (customId.startsWith('open_vote_')) {
+            // Si el customId comienza con 'open_vote_', lo maneja el nuevo voteHandler.
+            return await voteHandler.handleVoteButton(interaction, client);
+        }
+        // Puedes añadir más bloques 'else if' para otros grupos de botones...
+        else {
+            // Si el botón no está asignado a ningún manejador conocido.
+            console.log(`Custom ID de botón no manejado por interactionHandler: ${customId}`);
+            // Responde al usuario de forma efímera.
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.reply({ content: '🤔 Este botón no tiene una acción asignada.', ephemeral: true });
+            } else {
+                await interaction.editReply({ content: '🤔 Este botón no tiene una acción asignada.', ephemeral: true });
+            }
         }
     }
-
-    try {
-        if (interaction.isButton()) {
-            if (customId.startsWith('config_') || customId.startsWith('confirm_clear_config_')) {
-                const configurarCommand = client.commands.get('configurar');
-                if (configurarCommand && configurarCommand.handleButton) {
-                    return await configurarCommand.handleButton(interaction);
-                }
-            } else if (customId.startsWith('confirm_clear_verifications_')) {
-                const borrarVerificacionesCommand = client.commands.get('borrarverificaciones');
-                if (borrarVerificacionesCommand && borrarVerificacionesCommand.handleButton) {
-                    return await borrarVerificacionesCommand.handleButton(interaction);
-                }
-            }
-            // ... otras delegaciones de botones
-            switch (customId) {
-                default:
-                    console.log(`Custom ID de botón no manejado por interactionHandler: ${customId}`);
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '❌ Esta opción de botón no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                    } else if (interaction.deferred) {
-                        await interaction.editReply({ content: '❌ Esta opción de botón no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                    }
-                    break;
-            }
-        } else if (interaction.isModalSubmit()) {
-            if (customId.startsWith('config_') && customId.endsWith('_modal')) {
-                const configurarCommand = client.commands.get('configurar');
-                if (configurarCommand && configurarCommand.handleModalSubmit) {
-                    return await configurarCommand.handleModalSubmit(interaction);
-                }
-            }
-            // ... otras delegaciones de modales
-            else {
-                console.log(`Custom ID de modal no manejado por interactionHandler: ${customId}`);
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Esta opción de modal no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                } else if (interaction.deferred) {
-                    await interaction.editReply({ content: '❌ Esta opción de modal no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                }
-            }
-        } else if (interaction.isStringSelectMenu()) {
-            if (customId === 'config_select_menu') {
-                const configurarCommand = client.commands.get('configurar');
-                if (configurarCommand && configurarCommand.handleSelectMenu) {
-                    return await configurarCommand.handleSelectMenu(interaction);
-                }
-            } else if (customId === 'help_category_select') {
-                const helpCommand = client.commands.get('help');
-                if (helpCommand && helpCommand.handleSelectMenu) {
-                    return await helpCommand.handleSelectMenu(interaction);
-                }
-            }
-            // --- NUEVA DELEGACIÓN PARA EL MENÚ DESPLEGABLE DE LA TIENDA ---
-            else if (customId === 'shop_category_select') {
-                const tiendaCommand = client.commands.get('tienda'); // Asegúrate de que tu comando se llama 'tienda'
-                if (tiendaCommand && tiendaCommand.handleShopSelectMenu) { // Llama a la nueva función específica
-                    return await tiendaCommand.handleShopSelectMenu(interaction);
-                }
-            }
-            // --- FIN DE LA NUEVA DELEGACIÓN ---
-            // ... otras delegaciones de select menus
-            else {
-                console.log(`Custom ID de select menu no manejado por interactionHandler: ${customId}`);
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Esta opción de menú desplegable no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                } else if (interaction.deferred) {
-                    await interaction.editReply({ content: '❌ Esta opción de menú desplegable no está configurada o hubo un error inesperado.', flags: MessageFlags.Ephemeral });
-                }
+    // Manejo de interacciones de select menus
+    else if (interaction.isStringSelectMenu()) {
+        const { customId } = interaction;
+        if (customId.startsWith('config_')) {
+            // Si el customId comienza con 'config_', lo maneja el comando de configuración.
+            return await adminConfigCommand.handleSelectMenu(interaction);
+        }
+        // Puedes añadir más bloques 'else if' para otros grupos de select menus...
+        else {
+            // Si el select menu no está asignado a ningún manejador conocido.
+            console.log(`Custom ID de select menu no manejado por interactionHandler: ${customId}`);
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.reply({ content: '🤔 Este menú desplegable no tiene una acción asignada.', ephemeral: true });
+            } else {
+                await interaction.editReply({ content: '🤔 Este menú desplegable no tiene una acción asignada.', ephemeral: true });
             }
         }
-    } catch (error) {
-        console.error(`Error al procesar interacción con customId ${customId}:`, error);
-        if (interaction.deferred || interaction.replied) {
-            await interaction.editReply({ content: '❌ Hubo un error al procesar tu solicitud. Intenta de nuevo.', flags: MessageFlags.Ephemeral });
-        } else {
-            await interaction.reply({ content: '❌ Hubo un error al procesar tu solicitud. Intenta de nuevo.', flags: MessageFlags.Ephemeral });
+    }
+    // Manejo de interacciones de modales (modalSubmit)
+    else if (interaction.isModalSubmit()) {
+        const { customId } = interaction;
+        if (customId.startsWith('config_')) {
+            // Si el customId comienza con 'config_', lo maneja el comando de configuración.
+            return await adminConfigCommand.handleModalSubmit(interaction);
         }
+        // Puedes añadir más bloques 'else if' para otros grupos de modales...
+        else {
+            // Si el modal no está asignado a ningún manejador conocido.
+            console.log(`Custom ID de modal no manejado por interactionHandler: ${customId}`);
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.reply({ content: '🤔 Este modal no tiene una acción asignada.', ephemeral: true });
+            } else {
+                await interaction.editReply({ content: '🤔 Este modal no tiene una acción asignada.', ephemeral: true });
+            }
+        }
+    }
+    // Si la interacción no es un tipo de componente o modal manejado, loguea un mensaje.
+    else {
+        console.log('Interacción no manejada por interactionHandler (tipo desconocido):', interaction.type);
     }
 };

@@ -1,119 +1,65 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { embedColor, serverBannerUrl, serverOpenChannelId } = require('../../config');
-// ELIMINADA: const { defer, reply, followUp } = require('../../utils/responseUtils');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, MessageFlags } = require('discord.js');
+const { createCaborcaEmbed } = require('../../utils/embedBuilder');
+const { serverBannerUrl, embedColor } = require('../../config'); // Importa serverBannerUrl y embedColor
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('cerrar')
-        .setDescription('Anuncia el cierre del servidor para roleplay y limpia un canal específico o el canal actual.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
+        .setDescription('Cierra el servidor y finaliza cualquier votación de apertura activa.')
+        // El permiso de administrador ya se verifica en index.js
+        ,
     async execute(interaction) {
-        // NO LLAMES A defer() AQUÍ. index.js ya lo hizo automáticamente como efímero.
+        // CORRECCIÓN CLAVE: Deferir PÚBLICAMENTE para que todos lo vean.
+        // index.js ya no diferirá este comando, así que /cerrar lo hace.
+        await interaction.deferReply({ ephemeral: false }); 
 
-        const guild = interaction.guild;
-        let targetChannel = interaction.channel; // Por defecto, el canal donde se ejecuta el comando
+        const adminUser = interaction.user.tag;
 
-        // Si hay un serverOpenChannelId configurado en config.js, lo usamos; de lo contrario, usamos el canal actual
-        if (serverOpenChannelId) {
-            const configuredChannel = guild.channels.cache.get(serverOpenChannelId);
-            if (configuredChannel && configuredChannel.isTextBased()) {
-                targetChannel = configuredChannel;
-            } else {
-                console.warn(`[CERRAR] serverOpenChannelId (${serverOpenChannelId}) configurado no es un canal de texto válido. Usando el canal actual para el comando /cerrar.`);
-                // Usamos interaction.followUp para dar el aviso, ya que la deferencia inicial es para el comando.
-                await interaction.followUp({
-                    content: '⚠️ El ID de canal configurado (`serverOpenChannelId`) no es válido. El comando se ejecutará en este canal.',
-                    flags: MessageFlags.Ephemeral
-                });
-            }
-        }
+        // Construye el embed de cierre del servidor.
+        const closeEmbed = createCaborcaEmbed({
+            title: '🔒 ¡Servidor Cerrado!',
+            description: `El servidor ha sido cerrado por el administrador **${adminUser}**. 
+            \nLas operaciones del servidor están pausadas hasta nueva apertura.`,
+            color: '#FF0000', // Color rojo para indicar cierre
+            imageUrl: serverBannerUrl, // Usa el banner del config.js
+            footer: { text: '¡Mantente atento para la próxima apertura!' },
+            timestamp: true
+        });
 
-        if (!targetChannel || !targetChannel.isTextBased()) {
-            // Usamos interaction.editReply para la primera respuesta del comando
-            return await interaction.editReply({
-                content: '❌ **Error:** Este comando solo se puede ejecutar en un canal de texto válido para enviar y limpiar mensajes.',
-                flags: MessageFlags.Ephemeral
-            });
-        }
+        // Envía el mensaje de cierre como una respuesta EDITADA a la deferencia pública.
+        await interaction.editReply({ embeds: [closeEmbed] });
 
-        const embed = new EmbedBuilder()
-            .setColor(embedColor)
-            .setTitle('👋 ¡SERVIDOR CERRADO! 👋')
-            .setDescription('El servidor ha cerrado. Muchas gracias por rolear en Caborca Roleplay. ¡Esperamos verte pronto de nuevo!')
-            .setImage(serverBannerUrl)
-            .setFooter({ text: '¡Hasta la próxima!', iconURL: interaction.client.user.displayAvatarURL() })
-            .setTimestamp();
-
-        let sentMessage;
-        try {
-            // Envía el mensaje de cierre en el canal objetivo
-            sentMessage = await targetChannel.send({ embeds: [embed] });
-        } catch (sendError) {
-            console.error(`Error al enviar el mensaje de cierre en el canal ${targetChannel.id}:`, sendError);
-            // Usamos interaction.editReply o followUp para los errores
-            return await interaction.editReply({
-                content: '❌ Hubo un error al enviar el mensaje de cierre al canal. Verifica los permisos del bot en ese canal.',
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
-        let cleanedMessagesCount = 0;
-        let failedToCleanOldMessages = false;
-
-        try {
-            let fetched;
-            do {
-                fetched = await targetChannel.messages.fetch({ limit: 100 });
-                const messagesToProcess = fetched.filter(msg => msg.id !== sentMessage.id);
-
-                const fourteenDaysAgo = Date.now() - 1209599000; 
-                
-                const deletableMessages = messagesToProcess.filter(msg => 
-                    msg.createdTimestamp > fourteenDaysAgo
-                );
-                
-                const oldMessages = messagesToProcess.filter(msg => 
-                    msg.createdTimestamp <= fourteenDaysAgo
-                );
-
-                if (deletableMessages.size > 0) {
-                    const deleted = await targetChannel.bulkDelete(deletableMessages, true);
-                    cleanedMessagesCount += deleted.size;
+        // --- Lógica para limpiar y deshabilitar votaciones activas ---
+        if (interaction.client.activePolls.size > 0) {
+            // Itera sobre todas las votaciones activas para limpiarlas.
+            for (const [messageId, poll] of interaction.client.activePolls.entries()) {
+                if (poll.openServerTimer) {
+                    clearTimeout(poll.openServerTimer); // Detiene cualquier temporizador de 15 minutos activo.
                 }
                 
-                if (oldMessages.size > 0) {
-                    failedToCleanOldMessages = true;
-                    console.warn(`[CERRAR] Se encontraron ${oldMessages.size} mensajes de más de 14 días en el canal ${targetChannel.id} que no pudieron ser borrados masivamente.`);
+                // Intenta deshabilitar los botones del mensaje de votación original.
+                try {
+                    // Obtener el canal donde se inició la votación (puede ser diferente al actual si el comando se usó en otro canal).
+                    const pollChannel = interaction.client.channels.cache.get(poll.channelId);
+                    if (pollChannel) {
+                        const pollMessage = await pollChannel.messages.fetch(messageId); // Busca el mensaje por su ID.
+                        if (pollMessage && pollMessage.components.length > 0) {
+                            // Mapea los botones existentes y los deshabilita.
+                            const disabledButtons = pollMessage.components[0].components.map(btn => 
+                                ButtonBuilder.from(btn).setDisabled(true) // Crea un nuevo botón deshabilitado a partir del existente.
+                            );
+                            const row = new ActionRowBuilder().addComponents(disabledButtons);
+                            await pollMessage.edit({ components: [row] }); // Actualiza el mensaje con los botones deshabilitados.
+                        }
+                    }
+                } catch (e) {
+                    // Si el mensaje de votación no se encuentra o hay un error, lo loguea.
+                    console.error(`Error al deshabilitar botones de votación (ID: ${messageId}) al cerrar:`, e);
                 }
-
-            } while (fetched.size > (1 + (failedToCleanOldMessages ? oldMessages.size : 0)));
-
-            let successMessage = `✅ El servidor ha sido cerrado y **${cleanedMessagesCount}** mensajes recientes han sido limpiados en <#${targetChannel.id}>.`;
-            if (failedToCleanOldMessages) {
-                successMessage += '\n⚠️ **Nota:** Algunos mensajes antiguos (más de 14 días) no pudieron ser eliminados masivamente. Por favor, bórralos manualmente si es necesario.';
             }
-
-            // Usamos interaction.editReply para la respuesta final del comando.
-            await interaction.editReply({
-                content: successMessage,
-                flags: MessageFlags.Ephemeral
-            });
-
-        } catch (error) {
-            console.error('Error general al limpiar mensajes en /cerrar:', error);
-            
-            let errorMessage = '✅ El servidor ha sido cerrado, pero hubo un error al limpiar los mensajes. ';
-            if (error.code === 10008 || error.code === 50034) {
-                errorMessage += 'Esto pudo deberse a un problema con los mensajes (ej. ya borrados, o muy antiguos). Por favor, revisa el canal manualmente.';
-            } else {
-                errorMessage += 'Revisa la consola del bot para más detalles sobre este error inesperado.';
-            }
-
-            // Usamos interaction.editReply si es la primera vez que se responde, o followUp si ya se respondió.
-            // Para simplificar, y dado que index.js ya maneja el estado, podemos lanzar el error
-            // o intentar un editReply si la deferencia lo permite. Aquí usamos editReply como default.
-            await interaction.editReply({ content: errorMessage, flags: MessageFlags.Ephemeral });
+            interaction.client.activePolls.clear(); // Limpia todas las votaciones de la lista activa.
+            // Avisa al administrador que las votaciones activas fueron limpiadas (este sí puede ser efímero).
+            await interaction.followUp({ content: '✅ Se finalizó y limpió cualquier votación de apertura activa.', ephemeral: true });
         }
-    }
+    },
 };

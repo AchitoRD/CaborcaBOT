@@ -1,1 +1,8 @@
 estructura del bot
+
+necesito crear el comando /abrir /cerrar para mi bot, el comando /abrir manda un embed con informacion con emojis perzonalizados sacados de https://emoji.gg/, tipo el administrador tal a iniciado una votacion para abrir el servidor ingresa al servidor con el CODIGO: CABORPLAY y un sistema de votacion si llega  a 15 el embed se actualiza y dice tipo el servidor ah sido abierto los siguietes usuarios tiene 15 minutos para entrar o seran sancionados CODIGO DEL SERVIDOR: CABORPLAY
+
+El sistema de /cerrar envia un embed con banner igual  que esta en el config.js   // URLs de imágenes y color de embed
+    botLogoUrl: 'https://media.discordapp.net/attachments/1143633568325697658/1375608418328383498/Captura_de_pantalla_2025-05-20_12-23-53.png?ex=68324eac&is=6830fd2c&hm=aa33b98eb26295483f4fb0e46f7236c696f8dffb103d4035b74d844886ac6b47&=&format=webp&quality=lossless',
+    serverBannerUrl: 'https://images-ext-1.discordapp.net/external/HJGk8-nR_-EZTsLbTk4_lHlvvHu7lqML1on1XyEr-zM/%3Fsize%3D2048/https/cdn.discordapp.com/banners/1331832594463199333/d3413b04f1a78add6ab97c38d0e73fcc.png?format=webp&quality=lossless',
+    embedColor: '#DEA150', Para los 2 sistemas /abrir y cerrar, en fin el comando /cerrar envia un embed con emojis y eso diciendo el servidor a sido cerrado por tal "Solo administradores pueden ejecutar ese comando el cual ya esta configurado en el configurar.js y config.js "Dime si te paso los codigos de ello.

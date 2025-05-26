@@ -19,6 +19,7 @@ module.exports = {
         let failCount = 0;
         let ignoredCount = 0;
 
+        // --- Mock de Interacción Mejorado ---
         const mockInteraction = {
             user: { 
                 id: interaction.user.id,
@@ -38,20 +39,31 @@ module.exports = {
             guild: interaction.guild,     
             channel: interaction.channel, 
             client: client,               
-            id: 'mock_interaction_' + Date.now(),
+            id: 'mock_interaction_' + Date.now(), // Un ID simulado para la interacción en sí
             
             createdTimestamp: interaction.createdTimestamp, 
             
             replied: false,
             deferred: false,
 
-            editReply: async (options) => { mockInteraction.replied = true; mockInteraction.deferred = true; },
-            reply: async (options) => { mockInteraction.replied = true; },
+            // *** CORRECCIÓN CLAVE AQUÍ: Simular el retorno de un objeto mensaje con ID ***
+            editReply: async (options) => { 
+                mockInteraction.replied = true; 
+                mockInteraction.deferred = true; 
+                // Simula un objeto Message con un ID para fetchReply
+                return { id: `mock_message_${Date.now()}_edit` }; 
+            },
+            reply: async (options) => { 
+                mockInteraction.replied = true; 
+                // Simula un objeto Message con un ID para fetchReply
+                return { id: `mock_message_${Date.now()}_reply` }; 
+            },
+            // El resto de mocks de respuesta no necesitan devolver un ID de mensaje
             followUp: async (options) => { /* console.log('[MOCK] followUp:', options); */ },
-            deferReply: async (options) => { mockInteraction.deferred = true; }, 
-            deferUpdate: async () => { mockInteraction.deferred = true; },
-            showModal: async (modal) => { mockInteraction.replied = true; }, 
-            deleteReply: async () => { mockInteraction.replied = false; mockInteraction.deferred = false; },
+            deferReply: async (options) => { mockInteraction.deferred = true; /* console.log('[MOCK] deferReply:', options); */ }, 
+            deferUpdate: async () => { mockInteraction.deferred = true; /* console.log('[MOCK] deferUpdate'); */ },
+            showModal: async (modal) => { mockInteraction.replied = true; /* console.log('[MOCK] showModal:', modal.customId); */ }, 
+            deleteReply: async () => { mockInteraction.replied = false; mockInteraction.deferred = false; /* console.log('[MOCK] deleteReply'); */ },
 
             isChatInputCommand: () => true, 
             isButton: () => false,
@@ -152,7 +164,6 @@ module.exports = {
             }
         }
 
-        // --- CONSTRUCCIÓN DEL EMBED DE INFORME (SIN ARCHIVO ADJUNTO) ---
         const testResultsEmbed = createCaborcaEmbed({
             title: '📊 Informe de Pruebas de Comandos',
             description: `Se han ejecutado pruebas de diagnóstico en **${commandsToTest.length} comandos** de tu bot.`,
@@ -165,15 +176,13 @@ module.exports = {
 
         testResultsEmbed.addFields(
             { name: 'Total de Comandos Probados', value: `${commandsToTest.length}`, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true }, // Espacio en blanco
-            { name: 'Resumen de Resultados', value: '\u200B', inline: false }, // Encabezado para el resumen
+            { name: '\u200B', value: '\u200B', inline: true }, 
+            { name: 'Resumen de Resultados', value: '\u200B', inline: false }, 
             { name: '✅ OK', value: `${successCount} comandos`, inline: true },
             { name: '❌ Fallidos', value: `${failCount} comandos`, inline: true },
             { name: '🟡 Ignorados', value: `${ignoredCount} comandos`, inline: true }, 
         );
 
-        // --- Detalles Completos en Campos del Embed (Ordenados y Limitados) ---
-        // Ordenar los resultados para que los fallidos aparezcan primero
         results.sort((a, b) => {
             if (a.status.startsWith('❌') && !b.status.startsWith('❌')) return -1;
             if (!a.status.startsWith('❌') && b.status.startsWith('❌')) return 1;
@@ -191,24 +200,21 @@ module.exports = {
             detailDescription += `> ℹ️ **Versión**: \`${res.version}\` | **Estado**: \`${res.internalState}\`\n`;
         });
 
-        // Dividir la descripción detallada en múltiples campos si excede el límite de 1024 caracteres
-        const chunkSize = 1000; // Usamos 1000 para ser seguros
+        const chunkSize = 1000; 
         for (let i = 0; i < detailDescription.length; i += chunkSize) {
             const chunk = detailDescription.substring(i, i + chunkSize);
             testResultsEmbed.addFields({ 
-                name: i === 0 ? 'Detalles por Comando' : '\u200B', // Solo el primer campo tiene título
+                name: i === 0 ? 'Detalles por Comando' : '\u200B', 
                 value: chunk, 
                 inline: false 
             });
         }
         
-        // --- Envío del Informe al Usuario ---
         try {
             await interaction.user.send({ embeds: [testResultsEmbed] }); 
             await interaction.editReply({ content: '✅ El informe de pruebas de comandos ha sido enviado a tu DM.', ephemeral: true }); 
         } catch (dmError) {
             console.error(`Error enviando informe de pruebas al DM de ${interaction.user.tag}:`, dmError);
-            // Si el DM falla, se envía el embed directamente al canal como efímero.
             await interaction.editReply({ 
                 content: '❌ No pude enviarte el informe por DM. Aquí está:\n', 
                 embeds: [testResultsEmbed], 
