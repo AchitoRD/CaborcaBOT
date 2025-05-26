@@ -23,7 +23,7 @@ const cedulaSequelize = require('./database/database');
 require('./models/Cedula');
 
 const { economySequelize, UserEconomy, Arresto, Multa } = require('./database/economyDatabase'); // ServerVote removido de aquí
-const { voteSequelize, ServerVote } = require('./database/voteDatabase'); // ServerVote está aquí ahora
+
 
 const configSequelize = require('./database/configDatabase');
 require('./models/Config');
@@ -50,10 +50,14 @@ eventHandler(client);
 
 // --- Lógica para los estados de presencia rotativos del bot ---
 const botStatuses = [
-    { type: ActivityType.Playing, name: '🎮 Caborca RolePlay' },
-    { type: ActivityType.Watching, name: '👀 Configurado por Achitodev' },
-    { type: ActivityType.Listening, name: '🎧 Update 1.0' },
-    { type: ActivityType.Custom, name: '🌐 https://discord.gg/qnps457Uzk' }
+    // Usando el emoji Unicode para '🕹️ CABORPLAY'
+    { type: ActivityType.Playing, name: '🕹️ CABORPLAY' },
+  
+    { type: ActivityType.Custom, name: '✨ ➜ Configurado por ʿ　♡ ﹒ Achitodev　⏇' },
+   
+    { type: ActivityType.Watching, name: '⚙️ Mi Update 1.0.1' },
+  
+    { type: ActivityType.Custom, name: '🎉 Unete Ya!' } 
 ];
 let currentStatusIndex = 0;
 
@@ -69,62 +73,9 @@ function setRandomStatus() {
 
 client.once(Events.ClientReady, c => {
     console.log(`✅ ¡Bot listo! Logueado como ${c.user.tag}`);
-    setRandomStatus();
-    setInterval(setRandomStatus, 10000); // Cambia el estado cada 10 segundos
-    setInterval(checkExpiredVotes, 60 * 1000); // Verifica votaciones caducadas cada 1 minuto
+    setRandomStatus(); // Establece el estado inicial al arrancar el bot
+    setInterval(setRandomStatus, 5000); // Cambia el estado cada **5 segundos**
 });
-
-// Función para verificar y cerrar votaciones caducadas (movida aquí)
-async function checkExpiredVotes() {
-    try {
-        const expiredVotes = await ServerVote.findAll({
-            where: {
-                status: 'active',
-                endsAt: {
-                    [require('sequelize').Op.lt]: new Date()
-                }
-            }
-        });
-
-        if (expiredVotes.length > 0) {
-            console.log(`🧹 Cerrando ${expiredVotes.length} votaciones caducadas...`);
-            for (const vote of expiredVotes) {
-                vote.status = 'closed';
-                await vote.save();
-
-                if (vote.channelId && vote.messageId) {
-                    try {
-                        const channel = await client.channels.fetch(vote.channelId);
-                        if (channel && channel.isTextBased()) {
-                            const message = await channel.messages.fetch(vote.messageId);
-                            if (message) {
-                                const embed = new EmbedBuilder(message.embeds[0].toJSON())
-                                    .setTitle('⏰ ¡VOTACIÓN FINALIZADA! (Por Tiempo)')
-                                    .setDescription('La votación ha concluido. No se alcanzaron los votos necesarios o el tiempo expiró.')
-                                    .spliceFields(0, 1, { name: 'Estado Final:', value: `Votos: **${vote.votes['abrir_servidor'] || 0}**/${minVotesToOpenServer}` });
-
-                                const newRow = new ActionRowBuilder()
-                                    .addComponents(
-                                        new ButtonBuilder()
-                                            .setCustomId(`vote_open_server_expired_${vote.id}`)
-                                            .setLabel('VOTACIÓN CERRADA')
-                                            .setStyle(ButtonStyle.Secondary)
-                                            .setDisabled(true),
-                                    );
-                                await message.edit({ embeds: [embed], components: [newRow] });
-                            }
-                        }
-                    } catch (msgError) {
-                        console.error(`Error al actualizar mensaje de votación caducada (${vote.id}):`, msgError);
-                    }
-                }
-            }
-            console.log('✅ Votaciones caducadas cerradas con éxito.');
-        }
-    } catch (error) {
-        console.error('❌ Error al verificar y cerrar votaciones caducadas:', error);
-    }
-}
 
 
 // --- Manejo centralizado de TODAS las interacciones de Discord ---
@@ -197,7 +148,7 @@ Promise.all([
     cedulaSequelize.sync(),
     economySequelize.sync(),
     configSequelize.sync(),
-    voteSequelize.sync(), // Sincroniza la DB de votación
+
 ])
 .then(async () => {
     console.log('✅ Todas las bases de datos (Cédulas, Economía, Configuración, Votaciones, Arrestos, Multas) sincronizadas con éxito.');

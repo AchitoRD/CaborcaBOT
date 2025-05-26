@@ -1,21 +1,20 @@
-// commands/economy/comprar.js
 const { SlashCommandBuilder } = require('discord.js');
 const { createCaborcaEmbed } = require('../../utils/embedBuilder');
-const UserEconomy = require('../../models/UserEconomy');
-const { shop } = require('../../config'); // Importa la config de la tienda
+// CAMBIO CLAVE: Importa UserEconomy directamente desde economyDatabase.js
+const { UserEconomy } = require('../../database/economyDatabase'); 
+const { shop } = require('../../config'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('comprar')
         .setDescription('Compra un artículo de la tienda de Caborca. 🛍️')
         .addStringOption(option =>
-            option.setName('articulo_id') // Cambiado a 'articulo_id' para ser más específico
+            option.setName('articulo_id') 
                 .setDescription('El ID del artículo que deseas comprar (ver /tienda)')
                 .setRequired(true)),
     async execute(interaction) {
-        // NO DEBE HABER DEFERENCIA AQUÍ. commandHandler.js la hace automáticamente.
         const userId = interaction.user.id;
-        const itemId = interaction.options.getString('articulo_id').toLowerCase(); // Convertir a minúsculas para coincidir
+        const itemId = interaction.options.getString('articulo_id').toLowerCase(); 
 
         const itemToBuy = shop.items.find(item => item.id === itemId);
 
@@ -25,7 +24,6 @@ module.exports = {
                 description: `El ID de artículo \`${itemId}\` no existe en la tienda. Revisa la lista con \`/tienda\`.`,
                 color: '#FF0000'
             });
-            // CAMBIO CLAVE: Usar editReply() en lugar de reply().
             return await interaction.editReply({ embeds: [notFoundEmbed] });
         }
 
@@ -41,13 +39,16 @@ module.exports = {
                     description: `No tienes suficientes Caborca Bucks para comprar **${itemToBuy.name}**. Necesitas $${itemToBuy.price}, y tú tienes $${userEconomy.balance}.`,
                     color: '#FFA500'
                 });
-                // CAMBIO CLAVE: Usar editReply() en lugar de reply().
                 return await interaction.editReply({ embeds: [insufficientFundsEmbed] });
             }
 
             // Deducir dinero y añadir item al inventario
             userEconomy.balance -= itemToBuy.price;
-            userEconomy.inventory.push(itemToBuy.id); // Guardar el ID del item
+            // Asegúrate de que userEconomy.inventory sea un array antes de hacer push
+            if (!Array.isArray(userEconomy.inventory)) {
+                userEconomy.inventory = []; 
+            }
+            userEconomy.inventory.push(itemToBuy.id); 
             await userEconomy.save();
 
             const successEmbed = createCaborcaEmbed({
@@ -61,7 +62,6 @@ module.exports = {
                 color: '#2ECC71'
             });
 
-            // CAMBIO CLAVE: Usar editReply() en lugar de reply().
             await interaction.editReply({ embeds: [successEmbed] });
         } catch (error) {
             console.error('Error al comprar artículo:', error);
@@ -70,7 +70,6 @@ module.exports = {
                 description: 'Hubo un problema al intentar procesar tu compra. Por favor, inténtalo de nuevo más tarde.',
                 color: '#FF0000'
             });
-            // CAMBIO CLAVE: Usar editReply() en lugar de reply().
             await interaction.editReply({ embeds: [errorEmbed] });
         }
     },

@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, MessageFlags, ChannelType } = require('discord.js');
+// commands/admin/configurar.js
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, MessageFlags, ChannelType, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getConfig, saveConfig, clearAllConfigs } = require('../../utils/configManager');
 
 module.exports = {
@@ -62,7 +63,7 @@ module.exports = {
                     .setEmoji('🎟️'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel('Roles por Uso de Ítem')
-                    .setDescription('Configura roles que pueden usar ítems de la tienda.')
+                    .setDescription('Configura qué roles pueden usar ítems de tu tienda.')
                     .setValue('config_use_item_roles')
                     .setEmoji('✨'),
                 new StringSelectMenuOptionBuilder()
@@ -80,77 +81,68 @@ module.exports = {
         const actionRow = new ActionRowBuilder()
             .addComponents(selectMenu);
 
-        await interaction.editReply({
-            embeds: [configEmbed],
-            components: [actionRow]
-        });
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({
+                embeds: [configEmbed],
+                components: [actionRow]
+            });
+        } else {
+            await interaction.reply({
+                embeds: [configEmbed],
+                components: [actionRow],
+                ephemeral: true
+            });
+        }
     },
 
     async handleSelectMenu(interaction) {
-        await interaction.deferUpdate();
+        // MANTÉN esta línea aquí porque varios casos usan editReply después.
+        // Si un caso aquí fuera a showModal, lo llamarías directamente sin deferUpdate previo en ese caso.
+        await interaction.deferUpdate({ ephemeral: true }); 
 
         const [selectedValue] = interaction.values;
 
         switch (selectedValue) {
             case 'config_economy': {
-                const modal = new ModalBuilder()
-                    .setCustomId('config_economy_modal')
-                    .setTitle('💰 Configuración de Economía');
+                const economyPanelEmbed = new EmbedBuilder()
+                    .setColor(0x3498DB)
+                    .setTitle('💰 Configuración de Economía Avanzada')
+                    .setDescription('Selecciona qué aspecto de la economía deseas configurar:')
+                    .addFields(
+                        { name: '💸 Comando `/give`', value: 'Configura los roles que pueden usar el comando `/give`.', inline: true },
+                        { name: '👷‍♂️ Comando `/work`', value: 'Configura los montos y cooldowns de `/work`.', inline: true },
+                        { name: '📦 Comando `/collect` (Por Rol)', value: 'Configura montos y cooldowns de `/collect` ESPECÍFICOS PARA CADA ROL.', inline: true }
+                    )
+                    .setFooter({ text: `Panel solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
 
-                const defaultGiveRoles = await getConfig('defaultGiveCommandRoles') || [];
-                const collectConfig = await getConfig('collectConfig') || { amount: 0, cooldown: 0, roles: [] };
-                const workConfig = await getConfig('workConfig') || { minAmount: 0, maxAmount: 0, cooldown: 0, roles: [] };
-
-                const giveRolesInput = new TextInputBuilder()
-                    .setCustomId('economy_give_roles')
-                    .setLabel('Roles para /give (IDs, separados por coma)')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('Ej: 123..., 456...')
-                    .setRequired(false)
-                    .setValue(defaultGiveRoles.join(', '));
-
-                const collectAmountInput = new TextInputBuilder()
-                    .setCustomId('economy_collect_amount')
-                    .setLabel('Monto para /collect')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ej: 15000')
-                    .setRequired(true)
-                    .setValue(collectConfig.amount.toString());
-
-                const collectCooldownInput = new TextInputBuilder()
-                    .setCustomId('economy_collect_cooldown')
-                    .setLabel('Cooldown /collect (milisegundos)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ej: 3600000 (1 hora)')
-                    .setRequired(true)
-                    .setValue(collectConfig.cooldown.toString());
-
-                const workMinAmountInput = new TextInputBuilder()
-                    .setCustomId('economy_work_min_amount')
-                    .setLabel('Monto Mín. para /work')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ej: 500000')
-                    .setRequired(true)
-                    .setValue(workConfig.minAmount.toString());
-
-                const workMaxAmountInput = new TextInputBuilder()
-                    .setCustomId('economy_work_max_amount')
-                    .setLabel('Monto Máx. para /work')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ej: 200000000')
-                    .setRequired(true)
-                    .setValue(workConfig.maxAmount.toString());
-
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(giveRolesInput),
-                    new ActionRowBuilder().addComponents(collectAmountInput),
-                    new ActionRowBuilder().addComponents(collectCooldownInput),
-                    new ActionRowBuilder().addComponents(workMinAmountInput),
-                    new ActionRowBuilder().addComponents(workMaxAmountInput)
-                );
-
-                await interaction.showModal(modal);
+                const economyPanelRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('config_economy_give_roles_btn')
+                            .setLabel('Configurar /give Roles')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('💸'),
+                        new ButtonBuilder()
+                            .setCustomId('config_economy_work_btn')
+                            .setLabel('Configurar /work')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('👷‍♂️'),
+                        new ButtonBuilder()
+                            .setCustomId('config_economy_collect_btn')
+                            .setLabel('Configurar /collect (Por Rol)')
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('📦'),
+                        new ButtonBuilder()
+                            .setCustomId('config_economy_back_to_main_btn')
+                            .setLabel('Volver al Menú Principal')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('🔙')
+                    );
+                
+                await interaction.editReply({ // Aquí editas la respuesta diferida
+                    embeds: [economyPanelEmbed],
+                    components: [economyPanelRow]
+                });
                 break;
             }
             case 'config_user_roles': {
@@ -191,7 +183,7 @@ module.exports = {
                     new ActionRowBuilder().addComponents(citizenInput),
                     new ActionRowBuilder().addComponents(staffRolesInput)
                 );
-                await interaction.showModal(modal);
+                await interaction.showModal(modal); 
                 break;
             }
             case 'config_police_roles': {
@@ -315,7 +307,7 @@ module.exports = {
             case 'config_clear_db': {
                 const confirmEmbed = new EmbedBuilder()
                     .setTitle('⚠️ Confirmar Borrado de Configuración')
-                    .setDescription('Estás a punto de borrar **TODAS** las configuraciones guardadas. Esta acción es irreversible y reseteará el bot a sus valores por defecto. ¿Estás seguro?')
+                    .setDescription('Estás a punto de borrar **TODAS** las configuraciones guardadas. Esta acción es irreversible y reseteará el bot a sus valores por defecto. ¡Estás seguro?')
                     .setColor('Red');
 
                 const confirmRow = new ActionRowBuilder()
@@ -330,7 +322,7 @@ module.exports = {
                             .setStyle(ButtonStyle.Secondary)
                     );
 
-                await interaction.followUp({ embeds: [confirmEmbed], components: [confirmRow], flags: MessageFlags.Ephemeral });
+                await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
                 break;
             }
             case 'config_exit':
@@ -338,59 +330,489 @@ module.exports = {
                 await interaction.followUp({ content: '✅ Panel de configuración cerrado.', flags: MessageFlags.Ephemeral });
                 break;
             default:
-                await interaction.followUp({ content: '🤔 Opción de configuración no reconocida.', flags: MessageFlags.Ephemeral });
+                await interaction.editReply({ content: '🤔 Opción de configuración no reconocida.', flags: MessageFlags.Ephemeral });
         }
     },
 
-    async handleModalSubmit(interaction) {
-        await interaction.deferUpdate();
+    async handleButton(interaction) {
+        // Se ELIMINÓ el await interaction.deferUpdate() global aquí.
+        // deferUpdate/editReply/showModal se manejan en cada case según sea necesario.
 
         const { customId } = interaction;
 
         switch (customId) {
-            case 'config_economy_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Deferir la respuesta del modal
+            case 'config_economy_give_roles_btn': {
+                const modal = new ModalBuilder()
+                    .setCustomId('config_economy_give_modal')
+                    .setTitle('💸 Configurar Roles para /give');
 
+                const defaultGiveRoles = await getConfig('defaultGiveCommandRoles') || [];
+
+                const giveRolesInput = new TextInputBuilder()
+                    .setCustomId('economy_give_roles')
+                    .setLabel('Roles para /give (IDs, separados por coma)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Ej: 123..., 456...')
+                    .setRequired(false)
+                    .setValue(defaultGiveRoles.join(', '));
+                
+                modal.addComponents(new ActionRowBuilder().addComponents(giveRolesInput));
+                await interaction.showModal(modal);
+                break;
+            }
+            case 'config_economy_work_btn': {
+                const modal = new ModalBuilder()
+                    .setCustomId('config_economy_work_modal')
+                    .setTitle('👷‍♂️ Configurar /work');
+
+                const workConfig = await getConfig('workConfig') || { minAmount: 0, maxAmount: 0, cooldown: 0, roles: [] };
+
+                const workMinAmountInput = new TextInputBuilder()
+                    .setCustomId('economy_work_min_amount')
+                    .setLabel('Monto Mín. para /work')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 500000')
+                    .setRequired(true)
+                    .setValue(workConfig.minAmount.toString());
+
+                const workMaxAmountInput = new TextInputBuilder()
+                    .setCustomId('economy_work_max_amount')
+                    .setLabel('Monto Máx. para /work')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 200000000')
+                    .setRequired(true)
+                    .setValue(workConfig.maxAmount.toString());
+                
+                const workCooldownInput = new TextInputBuilder()
+                    .setCustomId('economy_work_cooldown_hours')
+                    .setLabel('Cooldown /work (horas)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 24 (24 horas)')
+                    .setRequired(true)
+                    .setValue((workConfig.cooldown / 3600000).toString());
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(workMinAmountInput),
+                    new ActionRowBuilder().addComponents(workMaxAmountInput),
+                    new ActionRowBuilder().addComponents(workCooldownInput)
+                );
+                await interaction.showModal(modal);
+                break;
+            }
+            case 'config_economy_collect_btn': {
+                await interaction.deferUpdate(); // MANTENER: aquí se usa editReply después
+                const collectConfigs = await getConfig('collectConfig') || [];
+                
+                let description = 'Aquí puedes gestionar las configuraciones de `/collect` para diferentes roles.\n\n';
+                if (collectConfigs.length > 0) {
+                    description += '**Configuraciones Actuales:**\n';
+                    collectConfigs.forEach((config, index) => {
+                        description += `\`${index + 1}.\` Rol: <@&${config.roleId}> | Monto: \`$${config.amount.toLocaleString()}\` | Cooldown: \`${config.cooldownHours}h\`\n`;
+                    });
+                } else {
+                    description += 'Actualmente no hay configuraciones específicas para `/collect` por rol. Cualquier usuario podrá usarlo con valores predeterminados si no se configuran roles aquí.\n';
+                }
+
+                const collectPanelEmbed = new EmbedBuilder()
+                    .setColor(0x2ECC71)
+                    .setTitle('📦 Configuración de /collect (Por Rol)')
+                    .setDescription(description)
+                    .setFooter({ text: 'Puedes añadir, editar o eliminar configuraciones.' });
+
+                const collectPanelRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('config_collect_add_btn')
+                            .setLabel('Añadir Configuración de Rol')
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('➕'),
+                        new ButtonBuilder()
+                            .setCustomId('config_collect_edit_btn')
+                            .setLabel('Editar Configuración de Rol')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('📝'),
+                        new ButtonBuilder()
+                            .setCustomId('config_collect_remove_btn')
+                            .setLabel('Eliminar Configuración de Rol')
+                            .setStyle(ButtonStyle.Danger)
+                            .setEmoji('➖'),
+                        new ButtonBuilder()
+                            .setCustomId('config_economy_back_to_main_btn')
+                            .setLabel('Volver al Panel de Economía')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('🔙')
+                    );
+                
+                await interaction.editReply({
+                    embeds: [collectPanelEmbed],
+                    components: [collectPanelRow]
+                });
+                break;
+            }
+            case 'config_economy_back_to_main_btn': {
+                await interaction.deferUpdate(); // MANTENER: aquí se usa editReply después
+                // Volver al menú principal de configuración (el embed inicial de /configurar)
+                const configEmbed = new EmbedBuilder()
+                    .setColor(0x3498DB)
+                    .setTitle('⚙️ Panel de Configuración de Caborca Bot')
+                    .setDescription('Aquí puedes ajustar varias configuraciones de tu bot. **Selecciona una opción del menú desplegable** para comenzar.')
+                    .setThumbnail(interaction.client.user.displayAvatarURL())
+                    .addFields(
+                        { name: '💰 Economía', value: 'Configura roles y montos para comandos de economía como `/give`, `/collect`, `/work`.', inline: true },
+                        { name: '👥 Roles de Usuario', value: 'Define roles para `No Verificado`, `Ciudadano`, y `Staff`.', inline: true },
+                        { name: '👮 Roles de Policía', value: 'Define los roles que pueden usar comandos de policía (`/arresto`, `/multa`, etc.).', inline: true },
+                        { name: '📝 Canal de Logs', value: 'Establece el canal donde el bot enviará registros.', inline: true },
+                        { name: '👋 Mensajes de Bienvenida', value: 'Configura mensajes automáticos para nuevos miembros.', inline: true },
+                        { name: '🎟️ Tickets', value: 'Define la categoría para los canales de tickets.', inline: true },
+                        { name: '✨ Roles por Uso de Ítem', value: 'Configura qué roles pueden usar ítems de tu tienda.', inline: true },
+                        { name: '🗑️ Vaciar Configuración', value: 'Borra todas las configuraciones guardadas. ¡Úsalo con precaución!', inline: true },
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('config_select_menu')
+                    .setPlaceholder('Elige una opción de configuración...')
+                    .addOptions(
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Economía')
+                            .setDescription('Configura roles y montos de economía (dar, recolectar, trabajar).')
+                            .setValue('config_economy')
+                            .setEmoji('💰'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Roles de Usuario')
+                            .setDescription('Define roles de No Verificado, Ciudadano y Staff.')
+                            .setValue('config_user_roles')
+                            .setEmoji('👥'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Roles de Policía')
+                            .setDescription('Define los roles con acceso a comandos policiales.')
+                            .setValue('config_police_roles')
+                            .setEmoji('👮'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Canal de Logs')
+                            .setDescription('Establece el canal para registros de actividad del bot.')
+                            .setValue('config_logs_channel')
+                            .setEmoji('📝'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Mensajes de Bienvenida')
+                            .setDescription('Configura mensajes automáticos para nuevos miembros.')
+                            .setValue('config_welcome_messages')
+                            .setEmoji('👋'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Tickets')
+                            .setDescription('Define la categoría para los canales de tickets.')
+                            .setValue('config_ticket_channel')
+                            .setEmoji('🎟️'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Roles por Uso de Ítem')
+                            .setDescription('Configura qué roles pueden usar ítems de tu tienda.')
+                            .setValue('config_use_item_roles')
+                            .setEmoji('✨'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Vaciar Configuración')
+                            .setDescription('Borra TODAS las configuraciones guardadas (irreversible).')
+                            .setValue('config_clear_db')
+                            .setEmoji('🗑️'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Cerrar Panel')
+                            .setDescription('Cierra esta ventana de configuración.')
+                            .setValue('config_exit')
+                            .setEmoji('❌'),
+                    );
+
+                const actionRow = new ActionRowBuilder()
+                    .addComponents(selectMenu);
+
+                await interaction.editReply({
+                    embeds: [configEmbed],
+                    components: [actionRow]
+                });
+                break;
+            }
+            // --- BOTONES PARA AÑADIR/EDITAR/ELIMINAR CONFIGURACIONES DE COLLECT POR ROL ---
+            case 'config_collect_add_btn': {
+                const modal = new ModalBuilder()
+                    .setCustomId('config_collect_add_modal')
+                    .setTitle('➕ Añadir Configuración /collect (Rol)');
+
+                const roleIdInput = new TextInputBuilder()
+                    .setCustomId('collect_role_id')
+                    .setLabel('ID del Rol')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 123456789012345678')
+                    .setRequired(true);
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('collect_amount')
+                    .setLabel('Monto de dinero a recolectar')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 500')
+                    .setRequired(true);
+
+                const cooldownInput = new TextInputBuilder()
+                    .setCustomId('collect_cooldown_hours')
+                    .setLabel('Cooldown (horas)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 24 (24 horas)')
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(roleIdInput),
+                    new ActionRowBuilder().addComponents(amountInput),
+                    new ActionRowBuilder().addComponents(cooldownInput)
+                );
+                await interaction.showModal(modal);
+                break;
+            }
+            case 'config_collect_edit_btn': {
+                const modal = new ModalBuilder()
+                    .setCustomId('config_collect_edit_modal')
+                    .setTitle('📝 Editar Configuración /collect (Rol)');
+
+                const roleIdInput = new TextInputBuilder()
+                    .setCustomId('collect_role_id_edit')
+                    .setLabel('ID del Rol a Editar')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 123456789012345678')
+                    .setRequired(true);
+                
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('collect_amount_edit')
+                    .setLabel('Nuevo Monto de dinero a recolectar')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Dejar vacío para no cambiar')
+                    .setRequired(false);
+
+                const cooldownInput = new TextInputBuilder()
+                    .setCustomId('collect_cooldown_hours_edit')
+                    .setLabel('Nuevo Cooldown (horas)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Dejar vacío para no cambiar')
+                    .setRequired(false);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(roleIdInput),
+                    new ActionRowBuilder().addComponents(amountInput),
+                    new ActionRowBuilder().addComponents(cooldownInput)
+                );
+                await interaction.showModal(modal);
+                break;
+            }
+            case 'config_collect_remove_btn': {
+                const modal = new ModalBuilder()
+                    .setCustomId('config_collect_remove_modal')
+                    .setTitle('➖ Eliminar Configuración /collect (Rol)');
+
+                const roleIdInput = new TextInputBuilder()
+                    .setCustomId('collect_role_id_remove')
+                    .setLabel('ID del Rol a Eliminar')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ej: 123456789012345678')
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(roleIdInput));
+                await interaction.showModal(modal);
+                break;
+            }
+            // --- FIN NUEVOS BOTONES DE COLLECT ---
+            default:
+                console.log(`Custom ID de botón no manejado por configurar.js: ${customId}`);
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ content: '❌ Opción de botón no configurada o error inesperado.', flags: MessageFlags.Ephemeral });
+                }
+                break;
+        }
+    },
+
+    async handleModalSubmit(interaction) {
+        // MANTENER ESTA LÍNEA AQUÍ. Diferirá la interacción del modal una vez.
+        await interaction.deferUpdate(); 
+
+        const { customId } = interaction;
+
+        switch (customId) {
+            case 'config_economy_give_modal': {
                 const giveRolesRaw = interaction.fields.getTextInputValue('economy_give_roles');
-                const collectAmountRaw = interaction.fields.getTextInputValue('economy_collect_amount');
-                const collectCooldownRaw = interaction.fields.getTextInputValue('economy_collect_cooldown');
-                const workMinAmountRaw = interaction.fields.getTextInputValue('economy_work_min_amount');
-                const workMaxAmountRaw = interaction.fields.getTextInputValue('economy_work_max_amount');
-
                 const defaultGiveCommandRoles = giveRolesRaw.split(',').map(id => id.trim()).filter(id => id.length > 0);
-                const collectAmount = parseInt(collectAmountRaw);
-                const collectCooldown = parseInt(collectCooldownRaw);
-                const workMinAmount = parseInt(workMinAmountRaw);
-                const workMaxAmount = parseInt(workMaxAmountRaw);
 
-                if (isNaN(collectAmount) || isNaN(collectCooldown) || isNaN(workMinAmount) || isNaN(workMaxAmount) ||
-                    collectAmount < 0 || collectCooldown < 0 || workMinAmount < 0 || workMaxAmount < 0 ||
-                    workMinAmount > workMaxAmount) {
-                    return await interaction.editReply({ content: '❌ Por favor, ingresa números válidos y positivos para los montos y cooldowns. Asegúrate de que el monto mínimo de trabajo no sea mayor que el máximo.' });
+                let errors = [];
+                for (const roleId of defaultGiveCommandRoles) {
+                    if (!interaction.guild.roles.cache.has(roleId)) {
+                        errors.push(`El ID de Rol '${roleId}' para /give no es válido.`);
+                    }
+                }
+                if (errors.length > 0) {
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de roles para /give:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('defaultGiveCommandRoles', defaultGiveCommandRoles);
-                await saveConfig('collectConfig', { amount: collectAmount, cooldown: collectCooldown, roles: [] }); // Roles de collect/work no se editan aquí para simplificar
-                await saveConfig('workConfig', { minAmount: workMinAmount, maxAmount: workMaxAmount, cooldown: workConfig.cooldown, roles: [] }); // Mantener roles de work
 
                 const embed = new EmbedBuilder()
-                    .setTitle('✅ Configuración de Economía Actualizada')
-                    .setDescription('Se han guardado las nuevas configuraciones para los comandos de economía.')
+                    .setTitle('✅ Configuración de /give Actualizada')
+                    .setDescription('Se han guardado los nuevos roles para el comando `/give`.')
                     .addFields(
                         { name: 'Roles para /give:', value: defaultGiveCommandRoles.length > 0 ? `<@&${defaultGiveCommandRoles.join('>, <@&')}>` : 'Ninguno', inline: true },
-                        { name: '`/collect` Monto:', value: `$${collectAmount.toLocaleString()}`, inline: true },
-                        { name: '`/collect` Cooldown:', value: `${collectCooldown / 1000 / 60} minutos`, inline: true },
-                        { name: '`/work` Monto Mín.:', value: `$${workMinAmount.toLocaleString()}`, inline: true },
-                        { name: '`/work` Monto Máx.:', value: `$${workMaxAmount.toLocaleString()}`, inline: true },
-                        { name: '`/work` Cooldown:', value: `${workConfig.cooldown / 1000 / 60 / 60} horas`, inline: true },
                     )
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                break;
+            }
+            case 'config_economy_work_modal': {
+                const workMinAmountRaw = interaction.fields.getTextInputValue('economy_work_min_amount');
+                const workMaxAmountRaw = interaction.fields.getTextInputValue('economy_work_max_amount');
+                const workCooldownHoursRaw = interaction.fields.getTextInputValue('economy_work_cooldown_hours');
+
+                const workMinAmount = parseInt(workMinAmountRaw);
+                const workMaxAmount = parseInt(workMaxAmountRaw);
+                const workCooldownHours = parseInt(workCooldownHoursRaw);
+                const workCooldownMs = workCooldownHours * 3600000;
+
+                let errors = [];
+                if (isNaN(workMinAmount) || isNaN(workMaxAmount) || isNaN(workCooldownHours) ||
+                    workMinAmount < 0 || workMaxAmount < 0 || workCooldownHours < 0 ||
+                    workMinAmount > workMaxAmount) {
+                    errors.push('Por favor, ingresa números válidos y positivos para los montos y el cooldown. Asegúrate de que el monto mínimo no sea mayor que el máximo.');
+                }
+                if (errors.length > 0) {
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de /work:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
+                }
+
+                await saveConfig('workConfig', { minAmount: workMinAmount, maxAmount: workMaxAmount, cooldown: workCooldownMs, roles: [] });
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Configuración de /work Actualizada')
+                    .setDescription('Se han guardado las nuevas configuraciones para el comando `/work`.')
+                    .addFields(
+                        { name: '`/work` Monto Mín.:', value: `$${workMinAmount.toLocaleString()}`, inline: true },
+                        { name: '`/work` Monto Máx.:', value: `$${workMaxAmount.toLocaleString()}`, inline: true },
+                        { name: '`/work` Cooldown:', value: `${workCooldownHours} horas`, inline: true },
+                    )
+                    .setColor('Green');
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                break;
+            }
+            case 'config_collect_add_modal': {
+                const roleId = interaction.fields.getTextInputValue('collect_role_id').trim();
+                const amountRaw = interaction.fields.getTextInputValue('collect_amount');
+                const cooldownHoursRaw = interaction.fields.getTextInputValue('collect_cooldown_hours');
+
+                const amount = parseInt(amountRaw);
+                const cooldownHours = parseInt(cooldownHoursRaw);
+
+                let errors = [];
+                if (!roleId || !interaction.guild.roles.cache.has(roleId)) {
+                    errors.push('El ID de Rol ingresado no es válido o no existe.');
+                }
+                if (isNaN(amount) || amount <= 0) {
+                    errors.push('El monto debe ser un número positivo.');
+                }
+                if (isNaN(cooldownHours) || cooldownHours <= 0) {
+                    errors.push('El cooldown debe ser un número positivo de horas.');
+                }
+
+                if (errors.length > 0) {
+                    return await interaction.followUp({ content: `❌ Errores al añadir configuración de /collect:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
+                }
+
+                // *** INICIO DE LA CORRECCIÓN CLAVE ***
+                let currentCollectConfigs = await getConfig('collectConfig');
+                // Asegúrate de que SIEMPRE sea un array, incluso si getConfig devuelve un objeto vacío u otra cosa.
+                if (!Array.isArray(currentCollectConfigs)) {
+                    currentCollectConfigs = [];
+                }
+                // *** FIN DE LA CORRECCIÓN CLAVE ***
+
+                if (currentCollectConfigs.some(config => config.roleId === roleId)) {
+                    return await interaction.followUp({ content: `❌ Ya existe una configuración de /collect para el rol <@&${roleId}>. Usa el botón "Editar" para modificarla.`, flags: MessageFlags.Ephemeral });
+                }
+
+                currentCollectConfigs.push({ roleId, amount, cooldownHours });
+                await saveConfig('collectConfig', currentCollectConfigs);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Configuración de /collect Añadida')
+                    .setDescription(`Se añadió la configuración para el rol <@&${roleId}>:\n` +
+                                    `Monto: \`$${amount.toLocaleString()}\` | Cooldown: \`${cooldownHours}h\``)
+                    .setColor('Green');
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                break;
+            }
+            case 'config_collect_edit_modal': {
+                const roleId = interaction.fields.getTextInputValue('collect_role_id_edit').trim();
+                const newAmountRaw = interaction.fields.getTextInputValue('collect_amount_edit');
+                const newCooldownHoursRaw = interaction.fields.getTextInputValue('collect_cooldown_hours_edit');
+
+                // *** INICIO DE LA CORRECCIÓN CLAVE ***
+                let currentCollectConfigs = await getConfig('collectConfig');
+                if (!Array.isArray(currentCollectConfigs)) { // Asegura que es un array
+                    currentCollectConfigs = [];
+                }
+                // *** FIN DE LA CORRECCIÓN CLAVE ***
+                const configIndex = currentCollectConfigs.findIndex(config => config.roleId === roleId);
+
+                if (configIndex === -1) {
+                    return await interaction.followUp({ content: `❌ No se encontró una configuración de /collect para el rol <@&${roleId}>.`, flags: MessageFlags.Ephemeral });
+                }
+
+                let updatedAmount = parseInt(newAmountRaw);
+                let updatedCooldownHours = parseInt(newCooldownHoursRaw);
+                let changesMade = false;
+
+                if (newAmountRaw && (!isNaN(updatedAmount) && updatedAmount > 0)) {
+                    currentCollectConfigs[configIndex].amount = updatedAmount;
+                    changesMade = true;
+                } else if (newAmountRaw && (isNaN(updatedAmount) || updatedAmount <= 0)) {
+                    return await interaction.followUp({ content: '❌ El nuevo monto debe ser un número positivo o dejarse vacío para no cambiar.', flags: MessageFlags.Ephemeral });
+                }
+
+                if (newCooldownHoursRaw && (!isNaN(updatedCooldownHours) && updatedCooldownHours > 0)) {
+                    currentCollectConfigs[configIndex].cooldownHours = updatedCooldownHours;
+                    changesMade = true;
+                } else if (newCooldownHoursRaw && (isNaN(updatedCooldownHours) || updatedCooldownHours <= 0)) {
+                    return await interaction.followUp({ content: '❌ El nuevo cooldown debe ser un número positivo de horas o dejarse vacío para no cambiar.', flags: MessageFlags.Ephemeral });
+                }
+
+                if (!changesMade) {
+                    return await interaction.followUp({ content: 'ℹ️ No se realizaron cambios, ya que no se proporcionaron valores válidos o no se modificaron.', flags: MessageFlags.Ephemeral });
+                }
+
+                await saveConfig('collectConfig', currentCollectConfigs);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Configuración de /collect Editada')
+                    .setDescription(`Se actualizó la configuración para el rol <@&${roleId}>:\n` +
+                                    `Monto: \`$${currentCollectConfigs[configIndex].amount.toLocaleString()}\` | Cooldown: \`${currentCollectConfigs[configIndex].cooldownHours}h\``)
+                    .setColor('Green');
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                break;
+            }
+            case 'config_collect_remove_modal': {
+                const roleId = interaction.fields.getTextInputValue('collect_role_id_remove').trim();
+
+                // *** INICIO DE LA CORRECCIÓN CLAVE ***
+                let currentCollectConfigs = await getConfig('collectConfig');
+                if (!Array.isArray(currentCollectConfigs)) { // Asegura que es un array
+                    currentCollectConfigs = [];
+                }
+                // *** FIN DE LA CORRECCIÓN CLAVE ***
+                const initialLength = currentCollectConfigs.length;
+                currentCollectConfigs = currentCollectConfigs.filter(config => config.roleId !== roleId);
+
+                if (currentCollectConfigs.length === initialLength) {
+                    return await interaction.followUp({ content: `❌ No se encontró una configuración de /collect para el rol <@&${roleId}>.`, flags: MessageFlags.Ephemeral });
+                }
+
+                await saveConfig('collectConfig', currentCollectConfigs);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Configuración de /collect Eliminada')
+                    .setDescription(`Se eliminó la configuración para el rol <@&${roleId}>.`)
+                    .setColor('Green');
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_user_roles_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const unverifiedRoleId = interaction.fields.getTextInputValue('user_role_unverified_id').trim();
                 const citizenRoleId = interaction.fields.getTextInputValue('user_role_citizen_id').trim();
                 const staffRolesRaw = interaction.fields.getTextInputValue('user_role_staff_ids');
@@ -412,7 +834,7 @@ module.exports = {
                 }
 
                 if (errors.length > 0) {
-                    return await interaction.editReply({ content: `❌ Errores en la configuración de roles de usuario:\n${errors.join('\n')}` });
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de roles de usuario:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('unverifiedRole', unverifiedRoleId);
@@ -428,12 +850,10 @@ module.exports = {
                         { name: 'Roles de Staff:', value: staffRoles.length > 0 ? `<@&${staffRoles.join('>, <@&')}>` : 'Ninguno', inline: true },
                     )
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_police_roles_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const rolesString = interaction.fields.getTextInputValue('policeRolesInput');
                 const newPoliceRoles = rolesString.split(',').map(id => id.trim()).filter(id => id.length > 0);
 
@@ -445,7 +865,7 @@ module.exports = {
                 }
 
                 if (errors.length > 0) {
-                    return await interaction.editReply({ content: `❌ Errores en la configuración de roles de policía:\n${errors.join('\n')}` });
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de roles de policía:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('policeRoles', newPoliceRoles);
@@ -455,17 +875,15 @@ module.exports = {
                     .setDescription(`Los roles de policía han sido establecidos a: \n\`${newPoliceRoles.join('`, `') || 'Ninguno'}\``)
                     .setColor('Green');
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_logs_channel_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const channelId = interaction.fields.getTextInputValue('logs_channel_id').trim();
                 const channel = interaction.guild.channels.cache.get(channelId);
 
                 if (!channel || channel.type !== ChannelType.GuildText) {
-                    return await interaction.editReply({ content: '❌ El ID de canal de logs no es válido o no es un canal de texto.' });
+                    return await interaction.followUp({ content: '❌ El ID de canal de logs no es válido o no es un canal de texto.', flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('logChannelId', channelId);
@@ -474,12 +892,10 @@ module.exports = {
                     .setTitle('✅ Canal de Logs Actualizado')
                     .setDescription(`El canal de logs ha sido establecido a: <#${channelId}>`)
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_welcome_messages_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const enabledStatus = interaction.fields.getTextInputValue('welcome_enable_disable_status').toLowerCase();
                 const welcomeChannelId = interaction.fields.getTextInputValue('welcome_channel_id').trim();
                 const welcomeMessageText = interaction.fields.getTextInputValue('welcome_message_text');
@@ -495,7 +911,7 @@ module.exports = {
                 }
 
                 if (errors.length > 0) {
-                    return await interaction.editReply({ content: `❌ Errores en la configuración de bienvenida:\n${errors.join('\n')}` });
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de bienvenida:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('welcomeMessagesEnabled', welcomeMessagesEnabled);
@@ -511,17 +927,15 @@ module.exports = {
                         { name: 'Mensaje:', value: welcomeMessageText || 'No configurado', inline: false },
                     )
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_ticket_channel_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const categoryId = interaction.fields.getTextInputValue('ticket_category_id').trim();
                 const category = interaction.guild.channels.cache.get(categoryId);
 
                 if (!category || category.type !== ChannelType.GuildCategory) {
-                    return await interaction.editReply({ content: '❌ El ID de la categoría de tickets no es válido o no es una categoría de canal.' });
+                    return await interaction.followUp({ content: '❌ El ID de la categoría de tickets no es válido o no es una categoría de canal.', flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('ticketCategoryChannelId', categoryId);
@@ -530,12 +944,10 @@ module.exports = {
                     .setTitle('✅ Categoría de Tickets Actualizada')
                     .setDescription(`La categoría para los canales de tickets ha sido establecida a: \`${category.name}\``)
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             case 'config_use_item_roles_modal': {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
                 const rolesRaw = interaction.fields.getTextInputValue('use_item_roles_ids');
                 const useItemAllowedRoles = rolesRaw.split(',').map(id => id.trim()).filter(id => id.length > 0);
 
@@ -547,7 +959,7 @@ module.exports = {
                 }
 
                 if (errors.length > 0) {
-                    return await interaction.editReply({ content: `❌ Errores en la configuración de roles por uso de ítem:\n${errors.join('\n')}` });
+                    return await interaction.followUp({ content: `❌ Errores en la configuración de roles por uso de ítem:\n${errors.join('\n')}`, flags: MessageFlags.Ephemeral });
                 }
 
                 await saveConfig('useItemAllowedRoles', useItemAllowedRoles);
@@ -556,36 +968,11 @@ module.exports = {
                     .setTitle('✅ Roles por Uso de Ítem Actualizados')
                     .setDescription(`Los roles permitidos para usar ítems han sido establecidos a: \n\`${useItemAllowedRoles.join('`, `') || 'Ninguno'}\``)
                     .setColor('Green');
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
                 break;
             }
             default:
                 await interaction.followUp({ content: '🤔 Modal de configuración no reconocido.', flags: MessageFlags.Ephemeral });
-        }
-    },
-
-    async handleButton(interaction) {
-        await interaction.deferUpdate();
-        const { customId } = interaction;
-
-        if (customId === 'confirm_clear_config_yes') {
-            try {
-                await clearAllConfigs();
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Configuración Borrada')
-                    .setDescription('Todas las configuraciones han sido borradas y el bot ha sido reseteado a sus valores por defecto. Es posible que necesites reiniciar el bot para que algunos cambios surtan efecto.')
-                    .setColor('Green');
-                await interaction.followUp({ embeds: [embed], components: [], flags: MessageFlags.Ephemeral });
-            } catch (error) {
-                console.error('Error al confirmar borrado de configuración:', error);
-                await interaction.followUp({ content: '❌ Hubo un error al intentar borrar las configuraciones.', components: [], flags: MessageFlags.Ephemeral });
-            }
-        } else if (customId === 'confirm_clear_config_no') {
-            const embed = new EmbedBuilder()
-                .setTitle('❌ Borrado de Configuración Cancelado')
-                .setDescription('La operación de borrado de configuraciones ha sido cancelada.')
-                .setColor('Red');
-            await interaction.followUp({ embeds: [embed], components: [], flags: MessageFlags.Ephemeral });
         }
     }
 };

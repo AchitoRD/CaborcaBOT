@@ -1,7 +1,8 @@
 // commands/economy/balance.js
 const { SlashCommandBuilder } = require('discord.js');
 const { createCaborcaEmbed } = require('../../utils/embedBuilder');
-const UserEconomy = require('../../models/UserEconomy'); // Importa el modelo
+// CAMBIO CLAVE: Importa UserEconomy directamente desde economyDatabase.js
+const { UserEconomy } = require('../../database/economyDatabase'); // <--- ¡CAMBIO AQUÍ!
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,6 +14,7 @@ module.exports = {
 
         try {
             // Encuentra o crea el usuario en la DB de economía
+            // Ahora UserEconomy es el modelo de Sequelize correctamente importado
             const [userEconomy] = await UserEconomy.findOrCreate({
                 where: { userId: userId },
                 defaults: { balance: 500 } // Dinero inicial
@@ -27,8 +29,6 @@ module.exports = {
                 footer: { text: '¡Gana más Caborca Bucks en el desierto de Caborca!' },
             });
 
-            // CAMBIO CLAVE: Usar editReply() en lugar de reply().
-            // La propiedad 'ephemeral' ya fue establecida por commandHandler.js en la deferencia inicial.
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error al obtener balance:', error);
@@ -37,7 +37,6 @@ module.exports = {
                 description: 'Hubo un problema al intentar obtener tu saldo. Por favor, inténtalo de nuevo más tarde.',
                 color: '#FF0000'
             });
-            // CAMBIO CLAVE: Usar editReply() en lugar de reply().
             await interaction.editReply({ embeds: [errorEmbed] });
         }
     },

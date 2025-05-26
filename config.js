@@ -1,4 +1,5 @@
 
+    
  // Roles por defecto (Estos serán cargados por `configManager` y pueden ser sobreescritos por la DB)
     defaultUnverifiedRole: null, // ID del rol para miembros no verificados. Ejemplo: '123456789012345678'
     defaultCitizenRole: null,    // ID del rol que se da al registrar cédula. Ejemplo: '123456789012345678'

@@ -23,6 +23,9 @@ module.exports = (client) => {
                     // ✅ Verificamos que el comando tenga las propiedades esenciales
                     if ('data' in command && 'execute' in command) {
                         client.commands.set(command.data.name, command);
+                        // --- ¡AÑADE ESTA LÍNEA! ---
+                        command.category = folder; // Asigna el nombre de la carpeta como categoría
+                        // --- FIN DE LA ADICIÓN ---
                         console.log(`✨ Comando cargado: "${command.data.name}" desde la carpeta "${folder}"`);
                     } else {
                         console.warn(`⚠️ Advertencia: El comando en "${filePath}" no tiene las propiedades "data" o "execute" requeridas. ¡Revisa tu código!`);

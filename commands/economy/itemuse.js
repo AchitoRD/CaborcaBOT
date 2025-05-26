@@ -1,9 +1,9 @@
-// commands/economy/itemuse.js
 const { SlashCommandBuilder } = require('discord.js');
 const { createCaborcaEmbed } = require('../../utils/embedBuilder');
-const UserEconomy = require('../../models/UserEconomy');
+// CAMBIO CLAVE: Importa UserEconomy directamente desde economyDatabase.js
+const { UserEconomy } = require('../../database/economyDatabase'); 
 const { shop } = require('../../config');
-const { getConfig } = require('../../utils/configManager'); // Importa getConfig
+const { getConfig } = require('../../utils/configManager'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,7 +14,6 @@ module.exports = {
                 .setDescription('El ID del artículo que deseas usar')
                 .setRequired(true)),
     async execute(interaction) {
-        // NO DEBE HABER DEFERENCIA AQUÍ. commandHandler.js la hace automáticamente.
         const userId = interaction.user.id;
         const member = interaction.member;
         const itemId = interaction.options.getString('articulo_id').toLowerCase();
@@ -25,13 +24,13 @@ module.exports = {
                 defaults: { balance: 500 }
             });
 
-            if (!userEconomy.inventory.includes(itemId)) {
+            // Asegúrate de que userEconomy.inventory sea un array antes de usar .includes
+            if (!Array.isArray(userEconomy.inventory) || !userEconomy.inventory.includes(itemId)) {
                 const embed = createCaborcaEmbed({
                     title: '🚫 Artículo No Encontrado en tu Inventario',
                     description: `No tienes el artículo con ID \`${itemId}\` en tu inventario. Revisa con \`/inventario\`.`,
                     color: '#FFA500'
                 });
-                // CAMBIO CLAVE: Usar editReply()
                 return await interaction.editReply({ embeds: [embed] });
             }
 
@@ -43,20 +42,21 @@ module.exports = {
                     description: `El artículo con ID \`${itemId}\` no se pudo encontrar en la tienda. Contacta al staff.`,
                     color: '#FF0000'
                 });
-                // CAMBIO CLAVE: Usar editReply()
                 return await interaction.editReply({ embeds: [embed] });
             }
 
             // Verificar si el usuario tiene un rol que le permita usar items (desde la DB)
             const useItemAllowedRoles = await getConfig('useItemAllowedRoles');
-            const canUseItem = useItemAllowedRoles.some(roleId => member.roles.cache.has(roleId));
-            if (useItemAllowedRoles.length > 0 && !canUseItem) {
+            const canUseItem = useItemAllowedRoles && useItemAllowedRoles.length > 0 
+                ? useItemAllowedRoles.some(roleId => member.roles.cache.has(roleId)) 
+                : true; // Si no hay roles configurados, cualquiera puede usarlo
+
+            if (!canUseItem) {
                  const embed = createCaborcaEmbed({
                     title: '🚫 Permiso Denegado',
                     description: `No tienes el rol necesario para usar este tipo de artículo. Solo roles específicos pueden activar ítems.`,
                     color: '#FFA500'
                 });
-                // CAMBIO CLAVE: Usar editReply()
                 return await interaction.editReply({ embeds: [embed] });
             }
 
@@ -88,13 +88,16 @@ module.exports = {
                 useMessage += `Este artículo no tiene un efecto de rol directo.`;
             }
 
+            // Eliminar el item del inventario después de usarlo
+            userEconomy.inventory = userEconomy.inventory.filter(id => id !== itemId);
+            await userEconomy.save();
+
             const embed = createCaborcaEmbed({
                 title: '✨ Artículo Usado',
                 description: useMessage,
                 footer: { text: `Gracias por usar el artículo de Caborca RP.` },
                 color: responseColor
             });
-            // CAMBIO CLAVE: Usar editReply()
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
@@ -104,7 +107,6 @@ module.exports = {
                 description: 'Hubo un problema al intentar usar el artículo. Por favor, inténtalo de nuevo más tarde.',
                 color: '#FF0000'
             });
-            // CAMBIO CLAVE: Usar editReply()
             await interaction.editReply({ embeds: [errorEmbed] });
         }
     },
